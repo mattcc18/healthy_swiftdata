@@ -15,6 +15,9 @@ final class ActiveWorkout {
     var templateName: String? // Optional reference to template used
     var notes: String?
     
+    // Relationship to source WorkoutTemplate (if started from template)
+    var workoutTemplate: WorkoutTemplate?
+    
     // Exercise entries for this workout
     @Relationship(deleteRule: .cascade) var entries: [WorkoutEntry]?
     
@@ -22,12 +25,15 @@ final class ActiveWorkout {
         id: UUID = UUID(),
         startedAt: Date = Date(),
         templateName: String? = nil,
-        notes: String? = nil
+        notes: String? = nil,
+        workoutTemplate: WorkoutTemplate? = nil
     ) {
         self.id = id
         self.startedAt = startedAt
         self.templateName = templateName
         self.notes = notes
+        self.workoutTemplate = workoutTemplate
     }
 }
+
 
