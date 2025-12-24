@@ -867,11 +867,11 @@ App Crash → Relaunch → Query ActiveWorkout → Resume ActiveWorkout
 
 ### Phase 7 (7.0) - Implement Single Active Workout Enforcement
 
-- [ ] 7.0 `git commit -m "feat: enforce single active workout constraint"`
-- [ ] 7.1 Add workout start function: Before creating new ActiveWorkout, query for existing one using @Query activeWorkouts.first, if found, show confirmation dialog "Discard existing workout?" with "Discard" and "Cancel" options
-- [ ] 7.2 Implement workout creation: Only create new ActiveWorkout if no existing one OR user confirms discard, delete existing ActiveWorkout before creating new (after user confirmation), create ActiveWorkout with startedAt = Date()
-- [ ] 7.3 Update UI to show active workout indicator: Add badge or indicator in ContentView showing "Active Workout" if one exists, link to ActiveWorkoutView
-- [ ] 7.4 Build validation: Test starting workout with existing one, verify discard prompt appears, verify only one ActiveWorkout exists at a time, verify UI indicators work
+- [x] 7.0 `git commit -m "feat: enforce single active workout constraint"`
+- [x] 7.1 Add workout start function: Before creating new ActiveWorkout, query for existing one using @Query activeWorkouts.first, if found, show confirmation dialog "Discard existing workout?" with "Discard" and "Cancel" options
+- [x] 7.2 Implement workout creation: Only create new ActiveWorkout if no existing one OR user confirms discard, delete existing ActiveWorkout before creating new (after user confirmation), create ActiveWorkout with startedAt = Date()
+- [x] 7.3 Update UI to show active workout indicator: Add badge or indicator in ContentView showing "Active Workout" if one exists, link to ActiveWorkoutView
+- [x] 7.4 Build validation: Test starting workout with existing one, verify discard prompt appears, verify only one ActiveWorkout exists at a time, verify UI indicators work
 - [ ] 7.5 User confirmation checkpoint before Phase 8
 
 ---

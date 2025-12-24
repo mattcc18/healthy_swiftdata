@@ -17,6 +17,8 @@ struct ContentView: View {
     @State private var showingResumePrompt = false
     @State private var shouldNavigateToActiveWorkout = false
     @State private var hasCheckedForResume = false
+    @State private var showingStartWorkoutConfirmation = false
+    @State private var showingDiscardConfirmation = false
     
     private var activeWorkout: ActiveWorkout? {
         activeWorkouts.first
@@ -33,8 +35,14 @@ struct ContentView: View {
                 if let activeWorkout = activeWorkout {
                     NavigationLink(destination: ActiveWorkoutView()) {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Active Workout")
-                                .font(.headline)
+                            HStack {
+                                Text("Active Workout")
+                                    .font(.headline)
+                                Spacer()
+                                Image(systemName: "circle.fill")
+                                    .foregroundColor(.green)
+                                    .font(.caption)
+                            }
                             Text("Started: \(activeWorkout.startedAt, style: .relative)")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
@@ -48,8 +56,20 @@ struct ContentView: View {
                     }
                     .buttonStyle(.plain)
                 } else {
-                    Text("No active workout")
-                        .foregroundColor(.secondary)
+                    Button(action: {
+                        startNewWorkout()
+                    }) {
+                        HStack {
+                            Image(systemName: "plus.circle.fill")
+                            Text("Start New Workout")
+                                .fontWeight(.semibold)
+                        }
+                        .foregroundColor(.white)
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color.blue)
+                        .cornerRadius(10)
+                    }
                 }
                 
                 // Statistics
@@ -96,6 +116,18 @@ struct ContentView: View {
                     Text("You have an active workout. Would you like to resume it or discard it?")
                 }
             }
+            .alert("Discard Existing Workout?", isPresented: $showingDiscardConfirmation) {
+                Button("Cancel", role: .cancel) { }
+                Button("Discard", role: .destructive) {
+                    discardAndStartNewWorkout()
+                }
+            } message: {
+                if let workout = activeWorkout {
+                    Text("You have an active workout that started \(workout.startedAt, style: .relative). Starting a new workout will discard it. This cannot be undone.")
+                } else {
+                    Text("Starting a new workout will discard your existing workout. This cannot be undone.")
+                }
+            }
         }
     }
     
@@ -119,6 +151,45 @@ struct ContentView: View {
             modelContext.delete(workout)
             try? modelContext.save()
         }
+    }
+    
+    // MARK: - Start Workout
+    
+    private func startNewWorkout() {
+        // Check if there's an existing active workout
+        if activeWorkout != nil {
+            // Show discard confirmation
+            showingDiscardConfirmation = true
+        } else {
+            // No existing workout, create new one directly
+            createNewWorkout()
+        }
+    }
+    
+    private func discardAndStartNewWorkout() {
+        // Delete existing workout first
+        if let workout = activeWorkout {
+            modelContext.delete(workout)
+            try? modelContext.save()
+        }
+        // Then create new workout
+        createNewWorkout()
+    }
+    
+    private func createNewWorkout() {
+        // Create new ActiveWorkout
+        let newWorkout = ActiveWorkout(
+            startedAt: Date(),
+            templateName: nil,
+            notes: nil
+        )
+        
+        // Insert into context and save
+        modelContext.insert(newWorkout)
+        try? modelContext.save()
+        
+        // Navigate to ActiveWorkoutView
+        shouldNavigateToActiveWorkout = true
     }
 }
 
