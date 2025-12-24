@@ -295,7 +295,7 @@ struct SetRowView: View {
     let onSetComplete: (Int?, String, Int) -> Void
     
     var exerciseName: String {
-        set.workoutEntry?.exerciseName ?? "Exercise"
+        self.set.workoutEntry?.exerciseName ?? "Exercise"
     }
     
     var body: some View {
