@@ -20,7 +20,9 @@ struct healthy_swiftdataApp: App {
             ActiveWorkout.self,
             WorkoutEntry.self,
             WorkoutSet.self,
-            WorkoutHistory.self
+            WorkoutHistory.self,
+            WorkoutTemplate.self,
+            TemplateExercise.self
         ])
         
         // Configure model container with in-memory storage for development
