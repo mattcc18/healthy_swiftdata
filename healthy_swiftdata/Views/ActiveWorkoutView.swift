@@ -10,9 +10,11 @@ import SwiftData
 
 struct ActiveWorkoutView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
     @Query private var activeWorkouts: [ActiveWorkout]
     @Query private var exerciseTemplates: [ExerciseTemplate]
     @State private var showingAddExercise = false
+    @State private var showingFinishConfirmation = false
     
     private var activeWorkout: ActiveWorkout? {
         activeWorkouts.first
@@ -32,7 +34,7 @@ struct ActiveWorkoutView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     if activeWorkout != nil {
                         Button("Finish") {
-                            // TODO: Implement finish workout in Phase 3
+                            showingFinishConfirmation = true
                         }
                     }
                 }
@@ -51,6 +53,16 @@ struct ActiveWorkoutView: View {
                         addExercise(name: exerciseName, to: activeWorkout!)
                     }
                 )
+            }
+            .alert("Finish Workout", isPresented: $showingFinishConfirmation) {
+                Button("Cancel", role: .cancel) { }
+                Button("Finish", role: .destructive) {
+                    if let workout = activeWorkout {
+                        finishWorkout(workout)
+                    }
+                }
+            } message: {
+                Text("Are you sure you want to finish this workout?")
             }
         }
     }
@@ -175,6 +187,89 @@ struct ActiveWorkoutView: View {
         
         modelContext.insert(newSet)
         try? modelContext.save()
+    }
+    
+    // MARK: - Finish Workout
+    
+    private func finishWorkout(_ workout: ActiveWorkout) {
+        let completedAt = Date()
+        let durationSeconds = Int(completedAt.timeIntervalSince(workout.startedAt))
+        
+        // Calculate total volume (sum of reps * weight for all sets)
+        var totalVolume: Double = 0.0
+        if let entries = workout.entries {
+            for entry in entries {
+                if let sets = entry.sets {
+                    for set in sets {
+                        if let reps = set.reps, let weight = set.weight {
+                            totalVolume += Double(reps) * weight
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Create WorkoutHistory
+        let history = WorkoutHistory(
+            startedAt: workout.startedAt,
+            completedAt: completedAt,
+            templateName: workout.templateName,
+            notes: workout.notes,
+            durationSeconds: durationSeconds,
+            totalVolume: totalVolume > 0 ? totalVolume : nil,
+            isSynced: false
+        )
+        
+        // Copy entries and sets (create new instances for WorkoutHistory)
+        if let entries = workout.entries {
+            var historyEntries: [WorkoutEntry] = []
+            for entry in entries.sorted(by: { $0.order < $1.order }) {
+                // Create new WorkoutEntry for history
+                let historyEntry = WorkoutEntry(
+                    exerciseTemplate: entry.exerciseTemplate,
+                    exerciseName: entry.exerciseName,
+                    order: entry.order,
+                    notes: entry.notes,
+                    createdAt: entry.createdAt
+                )
+                historyEntry.workoutHistory = history
+                
+                // Copy sets
+                if let sets = entry.sets {
+                    var historySets: [WorkoutSet] = []
+                    for set in sets.sorted(by: { $0.setNumber < $1.setNumber }) {
+                        let historySet = WorkoutSet(
+                            setNumber: set.setNumber,
+                            reps: set.reps,
+                            weight: set.weight,
+                            restTime: set.restTime,
+                            completedAt: set.completedAt,
+                            createdAt: set.createdAt
+                        )
+                        historySet.workoutEntry = historyEntry
+                        historySets.append(historySet)
+                        modelContext.insert(historySet)
+                    }
+                    historyEntry.sets = historySets
+                }
+                
+                historyEntries.append(historyEntry)
+                modelContext.insert(historyEntry)
+            }
+            history.entries = historyEntries
+        }
+        
+        // Insert WorkoutHistory
+        modelContext.insert(history)
+        
+        // Delete ActiveWorkout (cascade delete will handle entries and sets)
+        modelContext.delete(workout)
+        
+        // Save all changes
+        try? modelContext.save()
+        
+        // Dismiss view (navigation back will be handled in Phase 8)
+        dismiss()
     }
 }
 

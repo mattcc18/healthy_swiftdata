@@ -823,11 +823,11 @@ App Crash → Relaunch → Query ActiveWorkout → Resume ActiveWorkout
 
 ### Phase 3 (3.0) - Implement Workout Finish and History Conversion
 
-- [ ] 3.0 `git commit -m "feat: implement workout finish and history conversion"`
-- [ ] 3.1 Complete finishWorkout() method: Calculate durationSeconds as `Int(completedAt.timeIntervalSince(startedAt))`, create WorkoutHistory with completedAt = Date(), copy entries (create new WorkoutEntry instances with same data, link to WorkoutHistory), set isSynced = false, insert WorkoutHistory into modelContext
-- [ ] 3.2 Delete ActiveWorkout after conversion: After creating WorkoutHistory, delete ActiveWorkout using `modelContext.delete(activeWorkout)`, call `try? modelContext.save()`, then dismiss view
-- [ ] 3.3 Add navigation to workout history after finish (or show success message with navigation option)
-- [ ] 3.4 Build validation: Test finishing workout, verify WorkoutHistory created with correct data (completedAt, durationSeconds, entries), verify ActiveWorkout deleted, verify duration calculated correctly
+- [x] 3.0 `git commit -m "feat: implement workout finish and history conversion"`
+- [x] 3.1 Complete finishWorkout() method: Calculate durationSeconds as `Int(completedAt.timeIntervalSince(startedAt))`, create WorkoutHistory with completedAt = Date(), copy entries (create new WorkoutEntry instances with same data, link to WorkoutHistory), set isSynced = false, insert WorkoutHistory into modelContext
+- [x] 3.2 Delete ActiveWorkout after conversion: After creating WorkoutHistory, delete ActiveWorkout using `modelContext.delete(activeWorkout)`, call `try? modelContext.save()`, then dismiss view
+- [x] 3.3 Add navigation to workout history after finish (or show success message with navigation option) - Dismiss view implemented, full navigation will be added in Phase 8
+- [x] 3.4 Build validation: Test finishing workout, verify WorkoutHistory created with correct data (completedAt, durationSeconds, entries), verify ActiveWorkout deleted, verify duration calculated correctly
 - [ ] 3.5 User confirmation checkpoint before Phase 4
 
 ---
