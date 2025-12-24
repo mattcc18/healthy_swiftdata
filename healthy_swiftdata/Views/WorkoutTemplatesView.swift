@@ -161,15 +161,18 @@ struct WorkoutTemplatesView: View {
         template.lastUsed = Date()
         
         // Get template exercises sorted by order
-        guard let templateExercises = template.exercises?.sorted(by: { $0.order < $1.order }) else {
+        guard let templateExercises = template.exercises?.sorted(by: { $0.order < $1.order }), !templateExercises.isEmpty else {
             // No exercises in template, just insert workout
             modelContext.insert(newWorkout)
             try? modelContext.save()
+            selectedTab = 1
             return
         }
         
         // Create WorkoutEntry and WorkoutSet objects for each template exercise
         for templateExercise in templateExercises {
+            // Ensure numberOfSets is at least 1
+            let setsToCreate = max(1, templateExercise.numberOfSets)
             // Create WorkoutEntry
             let entry = WorkoutEntry(
                 exerciseTemplate: templateExercise.exerciseTemplate,
@@ -179,12 +182,14 @@ struct WorkoutTemplatesView: View {
             entry.activeWorkout = newWorkout
             
             // Create WorkoutSet objects for this exercise
-            for setNumber in 1...templateExercise.numberOfSets {
+            for setNumber in 1...setsToCreate {
+                // Ensure rest time is not negative
+                let restTime = max(0, templateExercise.restTimeSeconds)
                 let workoutSet = WorkoutSet(
                     setNumber: setNumber,
                     reps: templateExercise.targetReps,
                     weight: nil,
-                    restTime: templateExercise.restTimeSeconds,
+                    restTime: restTime,
                     completedAt: nil
                 )
                 workoutSet.workoutEntry = entry

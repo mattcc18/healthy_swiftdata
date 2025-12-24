@@ -342,8 +342,8 @@ struct SetRowView: View {
                 try? modelContext.save()
                 
                 // If set was just marked complete (not unmarked), trigger rest timer
-                if !wasComplete, set.completedAt != nil {
-                    onSetComplete(set.restTime, exerciseName, set.setNumber)
+                if !wasComplete, set.completedAt != nil, let restTime = set.restTime, restTime > 0 {
+                    onSetComplete(restTime, exerciseName, set.setNumber)
                 }
             }) {
                 Image(systemName: set.completedAt != nil ? "checkmark.circle.fill" : "circle")

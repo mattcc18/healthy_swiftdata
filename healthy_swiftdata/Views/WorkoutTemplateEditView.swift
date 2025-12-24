@@ -254,6 +254,12 @@ struct TemplateExerciseEditRow: View {
                         .keyboardType(.numberPad)
                         .textFieldStyle(.roundedBorder)
                         .frame(width: 80)
+                        .onChange(of: item.restTimeSeconds) { oldValue, newValue in
+                            // Ensure rest time is not negative
+                            if newValue < 0 {
+                                item.restTimeSeconds = 0
+                            }
+                        }
                 }
             }
         }
