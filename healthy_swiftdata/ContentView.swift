@@ -138,6 +138,8 @@ struct ContentView: View {
             }
             .navigationTitle("Workout Tracker")
             .onAppear {
+                // Seed exercise templates on first launch
+                DataSeeder.seedExerciseTemplates(modelContext: modelContext)
                 checkForResume()
             }
             .onChange(of: activeWorkouts) { _, _ in
