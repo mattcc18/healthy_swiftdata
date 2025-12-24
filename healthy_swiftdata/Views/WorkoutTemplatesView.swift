@@ -15,10 +15,18 @@ struct WorkoutTemplatesView: View {
         SortDescriptor(\WorkoutTemplate.createdAt, order: .reverse)
     ]) private var workoutTemplates: [WorkoutTemplate]
     
+    @Query private var activeWorkouts: [ActiveWorkout]
+    
     @State private var showingCreateTemplate = false
-    @State private var selectedTemplate: WorkoutTemplate?
+    @State private var selectedTemplateForEdit: WorkoutTemplate?
     @State private var showingDeleteConfirmation = false
     @State private var templateToDelete: WorkoutTemplate?
+    @State private var showingDiscardConfirmation = false
+    @State private var templateToStart: WorkoutTemplate?
+    
+    private var activeWorkout: ActiveWorkout? {
+        activeWorkouts.first
+    }
     
     var body: some View {
         NavigationView {
@@ -42,8 +50,18 @@ struct WorkoutTemplatesView: View {
             .sheet(isPresented: $showingCreateTemplate) {
                 WorkoutTemplateEditView(template: nil)
             }
-            .sheet(item: $selectedTemplate) { template in
+            .sheet(item: $selectedTemplateForEdit) { template in
                 WorkoutTemplateEditView(template: template)
+            }
+            .alert("Discard Existing Workout?", isPresented: $showingDiscardConfirmation) {
+                Button("Cancel", role: .cancel) { }
+                Button("Discard", role: .destructive) {
+                    if let template = templateToStart {
+                        discardAndStartWorkout(from: template)
+                    }
+                }
+            } message: {
+                Text("Starting a new workout will discard your current active workout. This cannot be undone.")
             }
             .alert("Delete Template", isPresented: $showingDeleteConfirmation) {
                 Button("Cancel", role: .cancel) { }
@@ -83,7 +101,10 @@ struct WorkoutTemplatesView: View {
                 WorkoutTemplateRow(
                     template: template,
                     onTap: {
-                        selectedTemplate = template
+                        startWorkout(from: template)
+                    },
+                    onEdit: {
+                        selectedTemplateForEdit = template
                     },
                     onDelete: {
                         templateToDelete = template
@@ -98,11 +119,98 @@ struct WorkoutTemplatesView: View {
         modelContext.delete(template)
         try? modelContext.save()
     }
+    
+    private func startWorkout(from template: WorkoutTemplate) {
+        // Check if there's an existing active workout
+        if activeWorkout != nil {
+            // Show discard confirmation
+            templateToStart = template
+            showingDiscardConfirmation = true
+        } else {
+            // No existing workout, create new one directly
+            createWorkoutFromTemplate(template)
+        }
+    }
+    
+    private func discardAndStartWorkout(from template: WorkoutTemplate) {
+        // Delete existing workout first
+        if let workout = activeWorkout {
+            modelContext.delete(workout)
+            try? modelContext.save()
+        }
+        // Then create new workout from template
+        createWorkoutFromTemplate(template)
+    }
+    
+    private func createWorkoutFromTemplate(_ template: WorkoutTemplate) {
+        // Create new ActiveWorkout with template reference
+        let newWorkout = ActiveWorkout(
+            startedAt: Date(),
+            templateName: template.name,
+            notes: nil,
+            workoutTemplate: template
+        )
+        
+        // Update template's lastUsed
+        template.lastUsed = Date()
+        
+        // Get template exercises sorted by order
+        guard let templateExercises = template.exercises?.sorted(by: { $0.order < $1.order }) else {
+            // No exercises in template, just insert workout
+            modelContext.insert(newWorkout)
+            try? modelContext.save()
+            return
+        }
+        
+        // Create WorkoutEntry and WorkoutSet objects for each template exercise
+        for templateExercise in templateExercises {
+            // Create WorkoutEntry
+            let entry = WorkoutEntry(
+                exerciseTemplate: templateExercise.exerciseTemplate,
+                exerciseName: templateExercise.exerciseName,
+                order: templateExercise.order
+            )
+            entry.activeWorkout = newWorkout
+            
+            // Create WorkoutSet objects for this exercise
+            for setNumber in 1...templateExercise.numberOfSets {
+                let workoutSet = WorkoutSet(
+                    setNumber: setNumber,
+                    reps: templateExercise.targetReps,
+                    weight: nil,
+                    restTime: templateExercise.restTimeSeconds,
+                    completedAt: nil
+                )
+                workoutSet.workoutEntry = entry
+                
+                if entry.sets == nil {
+                    entry.sets = []
+                }
+                entry.sets?.append(workoutSet)
+                
+                modelContext.insert(workoutSet)
+            }
+            
+            if newWorkout.entries == nil {
+                newWorkout.entries = []
+            }
+            newWorkout.entries?.append(entry)
+            
+            modelContext.insert(entry)
+        }
+        
+        // Insert workout and save
+        modelContext.insert(newWorkout)
+        try? modelContext.save()
+        
+        // Note: Tab switching will be handled in Phase 7 when integrating into MainTabView
+    }
 }
 
 struct WorkoutTemplateRow: View {
     let template: WorkoutTemplate
     let onTap: () -> Void
+    let onEdit: () -> Void
     let onDelete: () -> Void
     
     var exerciseCount: Int {
@@ -141,6 +249,13 @@ struct WorkoutTemplateRow: View {
                 
                 Spacer()
                 
+                // Edit button
+                Button(action: onEdit) {
+                    Image(systemName: "pencil")
+                        .foregroundColor(.blue)
+                }
+                .buttonStyle(.plain)
+                
                 Image(systemName: "chevron.right")
                     .foregroundColor(.secondary)
                     .font(.caption)
@@ -149,6 +264,11 @@ struct WorkoutTemplateRow: View {
         }
         .buttonStyle(.plain)
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button(action: onEdit) {
+                Label("Edit", systemImage: "pencil")
+            }
+            .tint(.blue)
+            
             Button(role: .destructive, action: onDelete) {
                 Label("Delete", systemImage: "trash")
             }
