@@ -812,11 +812,11 @@ App Crash → Relaunch → Query ActiveWorkout → Resume ActiveWorkout
 
 ### Phase 2 (2.0) - Implement Workout Editing in ActiveWorkoutView
 
-- [ ] 2.0 `git commit -m "feat: implement workout editing with SwiftData persistence"`
-- [ ] 2.1 Add exercise editing: Implement add exercise button, create WorkoutEntry creation function (snapshot exerciseName, create WorkoutSet instances), insert into modelContext, call `try? modelContext.save()` after changes
-- [ ] 2.2 Add set editing: Implement edit handlers for reps/weight fields, update WorkoutSet via modelContext, call `try? modelContext.save()` after each change
-- [ ] 2.3 Implement set completion: Add completion toggle that sets WorkoutSet.completedAt = Date() when complete, nil when incomplete, persist via modelContext.save()
-- [ ] 2.4 Build validation: Test adding exercises, editing sets, marking sets complete, verify all changes persist when app backgrounds
+- [x] 2.0 `git commit -m "feat: implement workout editing with SwiftData persistence"`
+- [x] 2.1 Add exercise editing: Implement add exercise button, create WorkoutEntry creation function (snapshot exerciseName, create WorkoutSet instances), insert into modelContext, call `try? modelContext.save()` after changes
+- [x] 2.2 Add set editing: Implement edit handlers for reps/weight fields, update WorkoutSet via modelContext, call `try? modelContext.save()` after each change
+- [x] 2.3 Implement set completion: Add completion toggle that sets WorkoutSet.completedAt = Date() when complete, nil when incomplete, persist via modelContext.save()
+- [x] 2.4 Build validation: Test adding exercises, editing sets, marking sets complete, verify all changes persist when app backgrounds
 - [ ] 2.5 User confirmation checkpoint before Phase 3
 
 ---

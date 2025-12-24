@@ -11,6 +11,8 @@ import SwiftData
 struct ActiveWorkoutView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var activeWorkouts: [ActiveWorkout]
+    @Query private var exerciseTemplates: [ExerciseTemplate]
+    @State private var showingAddExercise = false
     
     private var activeWorkout: ActiveWorkout? {
         activeWorkouts.first
@@ -34,6 +36,21 @@ struct ActiveWorkoutView: View {
                         }
                     }
                 }
+                ToolbarItem(placement: .navigationBarLeading) {
+                    if activeWorkout != nil {
+                        Button("Add Exercise") {
+                            showingAddExercise = true
+                        }
+                    }
+                }
+            }
+            .sheet(isPresented: $showingAddExercise) {
+                AddExerciseSheet(
+                    exerciseTemplates: exerciseTemplates,
+                    onAddExercise: { exerciseName in
+                        addExercise(name: exerciseName, to: activeWorkout!)
+                    }
+                )
             }
         }
     }
@@ -61,12 +78,23 @@ struct ActiveWorkoutView: View {
                     Section(header: Text(entry.exerciseName)) {
                         if let sets = entry.sets, !sets.isEmpty {
                             ForEach(sets.sorted(by: { $0.setNumber < $1.setNumber }), id: \.id) { set in
-                                SetRowView(set: set)
+                                SetRowView(set: set, modelContext: modelContext)
                             }
                         } else {
                             Text("No sets yet")
                                 .foregroundColor(.secondary)
                                 .font(.caption)
+                        }
+                        
+                        // Add set button
+                        Button(action: {
+                            addSet(to: entry)
+                        }) {
+                            HStack {
+                                Image(systemName: "plus.circle.fill")
+                                Text("Add Set")
+                            }
+                            .foregroundColor(.blue)
                         }
                     }
                 }
@@ -93,10 +121,66 @@ struct ActiveWorkoutView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
+    
+    // MARK: - Exercise Management
+    
+    private func addExercise(name: String, to workout: ActiveWorkout) {
+        guard !name.isEmpty else { return }
+        
+        // Determine next order position
+        let currentEntries = workout.entries ?? []
+        let nextOrder = currentEntries.isEmpty ? 0 : (currentEntries.map { $0.order }.max() ?? -1) + 1
+        
+        // Create WorkoutEntry with exercise name snapshot
+        let entry = WorkoutEntry(
+            exerciseName: name,
+            order: nextOrder
+        )
+        entry.activeWorkout = workout
+        
+        // Add entry to workout
+        if workout.entries == nil {
+            workout.entries = []
+        }
+        workout.entries?.append(entry)
+        
+        // Create a default set for the exercise
+        let defaultSet = WorkoutSet(setNumber: 1)
+        defaultSet.workoutEntry = entry
+        
+        if entry.sets == nil {
+            entry.sets = []
+        }
+        entry.sets?.append(defaultSet)
+        
+        // Insert into context and save
+        modelContext.insert(entry)
+        modelContext.insert(defaultSet)
+        try? modelContext.save()
+        
+        showingAddExercise = false
+    }
+    
+    private func addSet(to entry: WorkoutEntry) {
+        let currentSets = entry.sets ?? []
+        let nextSetNumber = currentSets.isEmpty ? 1 : (currentSets.map { $0.setNumber }.max() ?? 0) + 1
+        
+        let newSet = WorkoutSet(setNumber: nextSetNumber)
+        newSet.workoutEntry = entry
+        
+        if entry.sets == nil {
+            entry.sets = []
+        }
+        entry.sets?.append(newSet)
+        
+        modelContext.insert(newSet)
+        try? modelContext.save()
+    }
 }
 
 struct SetRowView: View {
     @Bindable var set: WorkoutSet
+    let modelContext: ModelContext
     
     var body: some View {
         HStack {
@@ -116,6 +200,9 @@ struct SetRowView: View {
                     .keyboardType(.numberPad)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 80)
+                    .onChange(of: set.reps) { _, _ in
+                        try? modelContext.save()
+                    }
             }
             
             // Weight field
@@ -127,11 +214,15 @@ struct SetRowView: View {
                     .keyboardType(.decimalPad)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 80)
+                    .onChange(of: set.weight) { _, _ in
+                        try? modelContext.save()
+                    }
             }
             
             // Completion toggle
             Button(action: {
                 set.completedAt = set.completedAt == nil ? Date() : nil
+                try? modelContext.save()
             }) {
                 Image(systemName: set.completedAt != nil ? "checkmark.circle.fill" : "circle")
                     .foregroundColor(set.completedAt != nil ? .green : .gray)
@@ -140,6 +231,72 @@ struct SetRowView: View {
             .buttonStyle(.plain)
         }
         .padding(.vertical, 4)
+    }
+}
+
+// MARK: - Add Exercise Sheet
+
+struct AddExerciseSheet: View {
+    let exerciseTemplates: [ExerciseTemplate]
+    let onAddExercise: (String) -> Void
+    @State private var searchText = ""
+    @Environment(\.dismiss) private var dismiss
+    
+    var filteredTemplates: [ExerciseTemplate] {
+        if searchText.isEmpty {
+            return exerciseTemplates
+        } else {
+            return exerciseTemplates.filter { template in
+                template.name.localizedCaseInsensitiveContains(searchText) ||
+                template.muscleGroups.contains { $0.localizedCaseInsensitiveContains(searchText) }
+            }
+        }
+    }
+    
+    var body: some View {
+        NavigationView {
+            List {
+                if exerciseTemplates.isEmpty {
+                    Section {
+                        Text("No exercise templates available")
+                            .foregroundColor(.secondary)
+                    }
+                } else {
+                    Section(header: Text("Exercise Templates")) {
+                        ForEach(filteredTemplates, id: \.id) { template in
+                            Button(action: {
+                                onAddExercise(template.name)
+                                dismiss()
+                            }) {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(template.name)
+                                            .font(.headline)
+                                            .foregroundColor(.primary)
+                                        if !template.muscleGroups.isEmpty {
+                                            Text(template.muscleGroups.joined(separator: ", "))
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                    }
+                                    Spacer()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .searchable(text: $searchText, prompt: "Search exercises")
+            .navigationTitle("Add Exercise")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+            }
+        }
     }
 }
 
