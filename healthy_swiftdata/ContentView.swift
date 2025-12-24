@@ -14,6 +14,14 @@ struct ContentView: View {
     @Query private var workoutHistory: [WorkoutHistory]
     @Query private var exerciseTemplates: [ExerciseTemplate]
     
+    @State private var showingResumePrompt = false
+    @State private var shouldNavigateToActiveWorkout = false
+    @State private var hasCheckedForResume = false
+    
+    private var activeWorkout: ActiveWorkout? {
+        activeWorkouts.first
+    }
+    
     var body: some View {
         NavigationView {
             VStack(spacing: 20) {
@@ -22,20 +30,23 @@ struct ContentView: View {
                     .fontWeight(.bold)
                 
                 // Active Workout Status
-                if let activeWorkout = activeWorkouts.first {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Active Workout")
-                            .font(.headline)
-                        Text("Started: \(activeWorkout.startedAt, style: .relative)")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                        Text("Exercises: \(activeWorkout.entries?.count ?? 0)")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
+                if let activeWorkout = activeWorkout {
+                    NavigationLink(destination: ActiveWorkoutView()) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Active Workout")
+                                .font(.headline)
+                            Text("Started: \(activeWorkout.startedAt, style: .relative)")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            Text("Exercises: \(activeWorkout.entries?.count ?? 0)")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding()
+                        .background(Color.blue.opacity(0.1))
+                        .cornerRadius(10)
                     }
-                    .padding()
-                    .background(Color.blue.opacity(0.1))
-                    .cornerRadius(10)
+                    .buttonStyle(.plain)
                 } else {
                     Text("No active workout")
                         .foregroundColor(.secondary)
@@ -54,6 +65,59 @@ struct ContentView: View {
             }
             .padding()
             .navigationTitle("Workout Tracker")
+            .onAppear {
+                checkForResume()
+            }
+            .onChange(of: activeWorkouts) { _, _ in
+                if !hasCheckedForResume {
+                    checkForResume()
+                }
+            }
+            .background(
+                NavigationLink(
+                    destination: ActiveWorkoutView(),
+                    isActive: $shouldNavigateToActiveWorkout
+                ) {
+                    EmptyView()
+                }
+                .hidden()
+            )
+            .alert("Resume Workout?", isPresented: $showingResumePrompt) {
+                Button("Resume") {
+                    resumeWorkout()
+                }
+                Button("Discard", role: .destructive) {
+                    discardWorkout()
+                }
+            } message: {
+                if let workout = activeWorkout {
+                    Text("You have an active workout that started \(workout.startedAt, style: .relative). Would you like to resume it or discard it?")
+                } else {
+                    Text("You have an active workout. Would you like to resume it or discard it?")
+                }
+            }
+        }
+    }
+    
+    private func checkForResume() {
+        // Only check once on initial app launch
+        guard !hasCheckedForResume else { return }
+        
+        if activeWorkout != nil {
+            showingResumePrompt = true
+        }
+        hasCheckedForResume = true
+    }
+    
+    private func resumeWorkout() {
+        // Navigate to ActiveWorkoutView, which will automatically load the existing ActiveWorkout via @Query
+        shouldNavigateToActiveWorkout = true
+    }
+    
+    private func discardWorkout() {
+        if let workout = activeWorkout {
+            modelContext.delete(workout)
+            try? modelContext.save()
         }
     }
 }

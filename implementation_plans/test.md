@@ -845,11 +845,11 @@ App Crash → Relaunch → Query ActiveWorkout → Resume ActiveWorkout
 
 ### Phase 5 (5.0) - Implement Crash Recovery and Resume Logic
 
-- [ ] 5.0 `git commit -m "feat: implement crash recovery and resume logic"`
-- [ ] 5.1 Add resume check in ContentView or App: On app launch, check if activeWorkouts.first exists (already queried via @Query), if found, show resume prompt alert with "Resume Workout" and "Discard" options
-- [ ] 5.2 Implement resume logic: If user chooses "Resume", navigate to ActiveWorkoutView (which will load existing ActiveWorkout via @Query), restore all state (exercises, sets, completion status via completedAt). If "Discard", delete ActiveWorkout and proceed normally
-- [ ] 5.3 Test crash simulation: Force quit app during workout, relaunch, verify resume prompt appears, verify workout state restored correctly
-- [ ] 5.4 Build validation: Test resume after crash, verify no data loss, verify state exactly as before crash (completedAt dates preserved), test discard option
+- [x] 5.0 `git commit -m "feat: implement crash recovery and resume logic"`
+- [x] 5.1 Add resume check in ContentView or App: On app launch, check if activeWorkouts.first exists (already queried via @Query), if found, show resume prompt alert with "Resume Workout" and "Discard" options
+- [x] 5.2 Implement resume logic: If user chooses "Resume", navigate to ActiveWorkoutView (which will load existing ActiveWorkout via @Query), restore all state (exercises, sets, completion status via completedAt). If "Discard", delete ActiveWorkout and proceed normally
+- [x] 5.3 Test crash simulation: Force quit app during workout, relaunch, verify resume prompt appears, verify workout state restored correctly
+- [x] 5.4 Build validation: Test resume after crash, verify no data loss, verify state exactly as before crash (completedAt dates preserved), test discard option
 - [ ] 5.5 User confirmation checkpoint before Phase 6
 
 ---
