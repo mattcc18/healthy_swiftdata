@@ -40,12 +40,19 @@ struct MainTabView: View {
                     Label("Exercises", systemImage: "list.bullet")
                 }
                 .tag(3)
+            
+            // Templates Tab
+            WorkoutTemplatesView()
+                .tabItem {
+                    Label("Templates", systemImage: "doc.text")
+                }
+                .tag(4)
         }
     }
 }
 
 #Preview {
     MainTabView()
-        .modelContainer(for: [ExerciseTemplate.self, ActiveWorkout.self, WorkoutEntry.self, WorkoutSet.self, WorkoutHistory.self], inMemory: true)
+        .modelContainer(for: [ExerciseTemplate.self, ActiveWorkout.self, WorkoutEntry.self, WorkoutSet.self, WorkoutHistory.self, WorkoutTemplate.self, TemplateExercise.self], inMemory: true)
 }
 
