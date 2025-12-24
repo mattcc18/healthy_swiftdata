@@ -856,11 +856,11 @@ App Crash → Relaunch → Query ActiveWorkout → Resume ActiveWorkout
 
 ### Phase 6 (6.0) - Create Exercise Catalog View
 
-- [ ] 6.0 `git commit -m "feat: create exercise catalog view with search and filter"`
-- [ ] 6.1 Create `healthy_swiftdata/Views/ExercisesView.swift`: Use `@Query private var exerciseTemplates: [ExerciseTemplate]`, display list of exercises grouped by category, show name, muscleGroups, icon
-- [ ] 6.2 Implement search functionality: Add search bar, filter exerciseTemplates by name or muscleGroups using computed property, update list in real-time
-- [ ] 6.3 Implement category filtering: Add category filter buttons, filter exercises by category field, highlight selected filter
-- [ ] 6.4 Build validation: Test exercise catalog loads from SwiftData, verify search/filter works, verify no performance issues
+- [x] 6.0 `git commit -m "feat: create exercise catalog view with search and filter"`
+- [x] 6.1 Create `healthy_swiftdata/Views/ExercisesView.swift`: Use `@Query private var exerciseTemplates: [ExerciseTemplate]`, display list of exercises grouped by category, show name, muscleGroups, icon
+- [x] 6.2 Implement search functionality: Add search bar, filter exerciseTemplates by name or muscleGroups using computed property, update list in real-time
+- [x] 6.3 Implement category filtering: Add category filter buttons, filter exercises by category field, highlight selected filter
+- [x] 6.4 Build validation: Test exercise catalog loads from SwiftData, verify search/filter works, verify no performance issues
 - [ ] 6.5 User confirmation checkpoint before Phase 7
 
 ---
