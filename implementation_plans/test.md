@@ -801,11 +801,11 @@ App Crash → Relaunch → Query ActiveWorkout → Resume ActiveWorkout
 
 ### Phase 1 (1.0) - Create Views Directory and ActiveWorkoutView
 
-- [ ] 1.0 `git commit -m "feat: create Views directory and ActiveWorkoutView"`
-- [ ] 1.1 Create `healthy_swiftdata/Views/` directory
-- [ ] 1.2 Create `healthy_swiftdata/Views/ActiveWorkoutView.swift` with @Query for ActiveWorkout: Add `@Environment(\.modelContext) private var modelContext`, add `@Query private var activeWorkouts: [ActiveWorkout]`, add computed property `private var activeWorkout: ActiveWorkout? { activeWorkouts.first }`
-- [ ] 1.3 Implement basic ActiveWorkoutView UI: Display active workout if exists, show exercises list, display sets for each exercise with editable reps/weight fields, use completedAt (Date?) for completion tracking (set completedAt = Date() when marked complete, nil when incomplete)
-- [ ] 1.4 Build validation: Verify ActiveWorkoutView compiles, test that it displays existing ActiveWorkout if present
+- [x] 1.0 `git commit -m "feat: create Views directory and ActiveWorkoutView"`
+- [x] 1.1 Create `healthy_swiftdata/Views/` directory
+- [x] 1.2 Create `healthy_swiftdata/Views/ActiveWorkoutView.swift` with @Query for ActiveWorkout: Add `@Environment(\.modelContext) private var modelContext`, add `@Query private var activeWorkouts: [ActiveWorkout]`, add computed property `private var activeWorkout: ActiveWorkout? { activeWorkouts.first }`
+- [x] 1.3 Implement basic ActiveWorkoutView UI: Display active workout if exists, show exercises list, display sets for each exercise with editable reps/weight fields, use completedAt (Date?) for completion tracking (set completedAt = Date() when marked complete, nil when incomplete)
+- [x] 1.4 Build validation: Verify ActiveWorkoutView compiles, test that it displays existing ActiveWorkout if present
 - [ ] 1.5 User confirmation checkpoint before Phase 2
 
 ---
