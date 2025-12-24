@@ -834,11 +834,11 @@ App Crash → Relaunch → Query ActiveWorkout → Resume ActiveWorkout
 
 ### Phase 4 (4.0) - Create Workout History View with Pagination
 
-- [ ] 4.0 `git commit -m "feat: add workout history view with pagination"`
-- [ ] 4.1 Create `healthy_swiftdata/Views/WorkoutHistoryView.swift`: Use @Query with FetchDescriptor, initialize with limit 25, sort by completedAt descending, implement pagination state (currentOffset), add loadMore() function that fetches next 25 workouts using FetchDescriptor with offset
-- [ ] 4.2 Create `healthy_swiftdata/Views/WorkoutHistoryDetailView.swift`: Display WorkoutHistory details (completedAt, durationSeconds, templateName), list all entries with sets, make read-only (no edit functionality), add delete button that removes from modelContext
-- [ ] 4.3 Add navigation from WorkoutHistoryView to WorkoutHistoryDetailView: Implement NavigationLink for each workout row
-- [ ] 4.4 Build validation: Test viewing history with 50+ workouts, verify pagination loads 25 at a time, verify smooth scrolling, verify detail view shows all data correctly
+- [x] 4.0 `git commit -m "feat: add workout history view with pagination"`
+- [x] 4.1 Create `healthy_swiftdata/Views/WorkoutHistoryView.swift`: Use @Query with sort by completedAt descending, implement pagination state (currentLimit), add loadMore() function that loads next 25 workouts from query results
+- [x] 4.2 Create `healthy_swiftdata/Views/WorkoutHistoryDetailView.swift`: Display WorkoutHistory details (completedAt, durationSeconds, templateName, totalVolume), list all entries with sets, make read-only (no edit functionality), add delete button that removes from modelContext
+- [x] 4.3 Add navigation from WorkoutHistoryView to WorkoutHistoryDetailView: Implement NavigationLink for each workout row
+- [x] 4.4 Build validation: Test viewing history with 50+ workouts, verify pagination loads 25 at a time, verify smooth scrolling, verify detail view shows all data correctly
 - [ ] 4.5 User confirmation checkpoint before Phase 5
 
 ---
