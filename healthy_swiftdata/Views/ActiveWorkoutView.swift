@@ -15,6 +15,7 @@ struct ActiveWorkoutView: View {
     @Query private var exerciseTemplates: [ExerciseTemplate]
     @State private var showingAddExercise = false
     @State private var showingFinishConfirmation = false
+    @StateObject private var restTimerManager = RestTimerManager()
     
     private var activeWorkout: ActiveWorkout? {
         activeWorkouts.first
@@ -64,6 +65,9 @@ struct ActiveWorkoutView: View {
             } message: {
                 Text("Are you sure you want to finish this workout?")
             }
+            .restTimerOverlay(timerManager: restTimerManager) {
+                restTimerManager.stopTimer()
+            }
         }
     }
     
@@ -90,7 +94,19 @@ struct ActiveWorkoutView: View {
                     Section(header: Text(entry.exerciseName)) {
                         if let sets = entry.sets, !sets.isEmpty {
                             ForEach(sets.sorted(by: { $0.setNumber < $1.setNumber }), id: \.id) { set in
-                                SetRowView(set: set, modelContext: modelContext)
+                                SetRowView(
+                                    set: set,
+                                    modelContext: modelContext,
+                                    onSetComplete: { restTime, exerciseName, setNumber in
+                                        if let restTime = restTime, restTime > 0 {
+                                            restTimerManager.startTimer(
+                                                seconds: restTime,
+                                                exerciseName: exerciseName,
+                                                setNumber: setNumber
+                                            )
+                                        }
+                                    }
+                                )
                             }
                         } else {
                             Text("No sets yet")
@@ -276,6 +292,11 @@ struct ActiveWorkoutView: View {
 struct SetRowView: View {
     @Bindable var set: WorkoutSet
     let modelContext: ModelContext
+    let onSetComplete: (Int?, String, Int) -> Void
+    
+    var exerciseName: String {
+        set.workoutEntry?.exerciseName ?? "Exercise"
+    }
     
     var body: some View {
         HStack {
@@ -316,8 +337,14 @@ struct SetRowView: View {
             
             // Completion toggle
             Button(action: {
+                let wasComplete = set.completedAt != nil
                 set.completedAt = set.completedAt == nil ? Date() : nil
                 try? modelContext.save()
+                
+                // If set was just marked complete (not unmarked), trigger rest timer
+                if !wasComplete, set.completedAt != nil {
+                    onSetComplete(set.restTime, exerciseName, set.setNumber)
+                }
             }) {
                 Image(systemName: set.completedAt != nil ? "checkmark.circle.fill" : "circle")
                     .foregroundColor(set.completedAt != nil ? .green : .gray)
