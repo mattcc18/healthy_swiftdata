@@ -14,10 +14,9 @@ struct ContentView: View {
     @Query private var workoutHistory: [WorkoutHistory]
     @Query private var exerciseTemplates: [ExerciseTemplate]
     
+    @Binding var selectedTab: Int
     @State private var showingResumePrompt = false
-    @State private var shouldNavigateToActiveWorkout = false
     @State private var hasCheckedForResume = false
-    @State private var showingStartWorkoutConfirmation = false
     @State private var showingDiscardConfirmation = false
     
     private var activeWorkout: ActiveWorkout? {
@@ -26,64 +25,117 @@ struct ContentView: View {
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 20) {
-                Text("Offline-First Workout Tracker")
-                    .font(.title)
-                    .fontWeight(.bold)
-                
-                // Active Workout Status
-                if let activeWorkout = activeWorkout {
-                    NavigationLink(destination: ActiveWorkoutView()) {
-                        VStack(alignment: .leading, spacing: 8) {
+            ScrollView {
+                VStack(spacing: 20) {
+                    Text("Offline-First Workout Tracker")
+                        .font(.title)
+                        .fontWeight(.bold)
+                        .padding(.top)
+                    
+                    // Active Workout Status
+                    if let activeWorkout = activeWorkout {
+                        Button(action: {
+                            selectedTab = 1 // Switch to Active Workout tab
+                        }) {
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Text("Active Workout")
+                                        .font(.headline)
+                                    Spacer()
+                                    Image(systemName: "circle.fill")
+                                        .foregroundColor(.green)
+                                        .font(.caption)
+                                }
+                                Text("Started: \(activeWorkout.startedAt, style: .relative)")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                Text("Exercises: \(activeWorkout.entries?.count ?? 0)")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding()
+                            .background(Color.blue.opacity(0.1))
+                            .cornerRadius(10)
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        Button(action: {
+                            startNewWorkout()
+                        }) {
                             HStack {
-                                Text("Active Workout")
-                                    .font(.headline)
+                                Image(systemName: "plus.circle.fill")
+                                Text("Start New Workout")
+                                    .fontWeight(.semibold)
+                            }
+                            .foregroundColor(.white)
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .background(Color.blue)
+                            .cornerRadius(10)
+                        }
+                    }
+                    
+                    // Quick Links
+                    VStack(spacing: 12) {
+                        Text("Quick Links")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        
+                        Button(action: {
+                            selectedTab = 2 // Switch to History tab
+                        }) {
+                            HStack {
+                                Image(systemName: "clock.fill")
+                                    .foregroundColor(.blue)
+                                Text("View Workout History")
                                 Spacer()
-                                Image(systemName: "circle.fill")
-                                    .foregroundColor(.green)
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(.secondary)
                                     .font(.caption)
                             }
-                            Text("Started: \(activeWorkout.startedAt, style: .relative)")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            Text("Exercises: \(activeWorkout.entries?.count ?? 0)")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
+                            .padding()
+                            .background(Color.gray.opacity(0.1))
+                            .cornerRadius(8)
                         }
-                        .padding()
-                        .background(Color.blue.opacity(0.1))
-                        .cornerRadius(10)
-                    }
-                    .buttonStyle(.plain)
-                } else {
-                    Button(action: {
-                        startNewWorkout()
-                    }) {
-                        HStack {
-                            Image(systemName: "plus.circle.fill")
-                            Text("Start New Workout")
-                                .fontWeight(.semibold)
+                        .buttonStyle(.plain)
+                        
+                        Button(action: {
+                            selectedTab = 3 // Switch to Exercises tab
+                        }) {
+                            HStack {
+                                Image(systemName: "list.bullet")
+                                    .foregroundColor(.blue)
+                                Text("Browse Exercises")
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(.secondary)
+                                    .font(.caption)
+                            }
+                            .padding()
+                            .background(Color.gray.opacity(0.1))
+                            .cornerRadius(8)
                         }
-                        .foregroundColor(.white)
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(Color.blue)
-                        .cornerRadius(10)
+                        .buttonStyle(.plain)
                     }
-                }
-                
-                // Statistics
-                VStack(spacing: 12) {
-                    StatRow(label: "Exercise Templates", value: "\(exerciseTemplates.count)")
-                    StatRow(label: "Workout History", value: "\(workoutHistory.count)")
+                    .padding()
+                    .background(Color.gray.opacity(0.05))
+                    .cornerRadius(10)
+                    
+                    // Statistics
+                    VStack(spacing: 12) {
+                        Text("Statistics")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        
+                        StatRow(label: "Exercise Templates", value: "\(exerciseTemplates.count)")
+                        StatRow(label: "Workout History", value: "\(workoutHistory.count)")
+                    }
+                    .padding()
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(10)
                 }
                 .padding()
-                .background(Color.gray.opacity(0.1))
-                .cornerRadius(10)
-                
-                Spacer()
             }
-            .padding()
             .navigationTitle("Workout Tracker")
             .onAppear {
                 checkForResume()
@@ -93,15 +145,6 @@ struct ContentView: View {
                     checkForResume()
                 }
             }
-            .background(
-                NavigationLink(
-                    destination: ActiveWorkoutView(),
-                    isActive: $shouldNavigateToActiveWorkout
-                ) {
-                    EmptyView()
-                }
-                .hidden()
-            )
             .alert("Resume Workout?", isPresented: $showingResumePrompt) {
                 Button("Resume") {
                     resumeWorkout()
@@ -142,8 +185,8 @@ struct ContentView: View {
     }
     
     private func resumeWorkout() {
-        // Navigate to ActiveWorkoutView, which will automatically load the existing ActiveWorkout via @Query
-        shouldNavigateToActiveWorkout = true
+        // Switch to Active Workout tab, which will automatically load the existing ActiveWorkout via @Query
+        selectedTab = 1
     }
     
     private func discardWorkout() {
@@ -188,8 +231,8 @@ struct ContentView: View {
         modelContext.insert(newWorkout)
         try? modelContext.save()
         
-        // Navigate to ActiveWorkoutView
-        shouldNavigateToActiveWorkout = true
+        // Switch to Active Workout tab
+        selectedTab = 1
     }
 }
 
@@ -208,6 +251,6 @@ struct StatRow: View {
 }
 
 #Preview {
-    ContentView()
+    ContentView(selectedTab: .constant(0))
         .modelContainer(for: [ExerciseTemplate.self, ActiveWorkout.self, WorkoutEntry.self, WorkoutSet.self, WorkoutHistory.self], inMemory: true)
 }

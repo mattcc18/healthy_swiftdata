@@ -36,7 +36,7 @@ struct healthy_swiftdataApp: App {
     
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            MainTabView()
         }
         .modelContainer(container)
     }

@@ -878,11 +878,11 @@ App Crash → Relaunch → Query ActiveWorkout → Resume ActiveWorkout
 
 ### Phase 8 (8.0) - Update Navigation Structure in ContentView
 
-- [ ] 8.0 `git commit -m "feat: update navigation structure and link all views"`
-- [ ] 8.1 Add TabView or NavigationView structure: Create tab-based navigation with tabs for Active Workout, History, Exercises, or use NavigationView with links
-- [ ] 8.2 Link views together: Add NavigationLink from ContentView to ActiveWorkoutView, add NavigationLink to WorkoutHistoryView, add NavigationLink to ExercisesView
-- [ ] 8.3 Polish UI and user flow: Ensure consistent navigation patterns, add proper navigation titles, test all navigation paths
-- [ ] 8.4 Build validation: Test all navigation flows, verify views link correctly, verify back navigation works
+- [x] 8.0 `git commit -m "feat: update navigation structure and link all views"`
+- [x] 8.1 Add TabView or NavigationView structure: Create tab-based navigation with tabs for Active Workout, History, Exercises, or use NavigationView with links
+- [x] 8.2 Link views together: Add NavigationLink from ContentView to ActiveWorkoutView, add NavigationLink to WorkoutHistoryView, add NavigationLink to ExercisesView
+- [x] 8.3 Polish UI and user flow: Ensure consistent navigation patterns, add proper navigation titles, test all navigation paths
+- [x] 8.4 Build validation: Test all navigation flows, verify views link correctly, verify back navigation works
 - [ ] 8.5 User confirmation checkpoint - Implementation complete
 
 ---
