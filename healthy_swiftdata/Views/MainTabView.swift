@@ -42,7 +42,7 @@ struct MainTabView: View {
                 .tag(3)
             
             // Templates Tab
-            WorkoutTemplatesView()
+            WorkoutTemplatesView(selectedTab: $selectedTab)
                 .tabItem {
                     Label("Templates", systemImage: "doc.text")
                 }

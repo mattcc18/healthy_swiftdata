@@ -17,12 +17,18 @@ struct WorkoutTemplatesView: View {
     
     @Query private var activeWorkouts: [ActiveWorkout]
     
+    @Binding var selectedTab: Int
+    
     @State private var showingCreateTemplate = false
     @State private var selectedTemplateForEdit: WorkoutTemplate?
     @State private var showingDeleteConfirmation = false
     @State private var templateToDelete: WorkoutTemplate?
     @State private var showingDiscardConfirmation = false
     @State private var templateToStart: WorkoutTemplate?
+    
+    init(selectedTab: Binding<Int> = .constant(0)) {
+        _selectedTab = selectedTab
+    }
     
     private var activeWorkout: ActiveWorkout? {
         activeWorkouts.first
@@ -203,7 +209,8 @@ struct WorkoutTemplatesView: View {
         modelContext.insert(newWorkout)
         try? modelContext.save()
         
-        // Note: Tab switching will be handled in Phase 7 when integrating into MainTabView
+        // Switch to Active Workout tab
+        selectedTab = 1
     }
 }
 
@@ -277,7 +284,7 @@ struct WorkoutTemplateRow: View {
 }
 
 #Preview {
-    WorkoutTemplatesView()
+    WorkoutTemplatesView(selectedTab: .constant(0))
         .modelContainer(for: [WorkoutTemplate.self, TemplateExercise.self, ExerciseTemplate.self], inMemory: true)
 }
 
