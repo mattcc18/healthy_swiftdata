@@ -37,7 +37,7 @@ struct BodyWeightEntryForm: View {
     }
     
     private var isValid: Bool {
-        if let weightValue = Double(weight), weightValue > 0 {
+        if let weightValue = weight.toDouble(), weightValue > 0 {
             return true
         }
         return false
@@ -87,7 +87,7 @@ struct BodyWeightEntryForm: View {
     }
     
     private func saveEntry() {
-        guard let weightValue = Double(weight), weightValue > 0 else {
+        guard let weightValue = weight.toDouble(), weightValue > 0 else {
             return
         }
         
