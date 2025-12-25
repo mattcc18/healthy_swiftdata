@@ -506,25 +506,6 @@ struct AddExerciseSheet: View {
     }
 }
 
-struct CategoryFilterButton: View {
-    let title: String
-    let isSelected: Bool
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(.subheadline)
-                .fontWeight(isSelected ? .semibold : .regular)
-                .foregroundColor(isSelected ? .white : .primary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(isSelected ? Color.blue : Color.gray.opacity(0.2))
-                .cornerRadius(20)
-        }
-    }
-}
-
 #Preview {
     ActiveWorkoutView()
         .modelContainer(for: [ExerciseTemplate.self, ActiveWorkout.self, WorkoutEntry.self, WorkoutSet.self, WorkoutHistory.self], inMemory: true)
