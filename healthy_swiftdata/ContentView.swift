@@ -185,7 +185,87 @@ struct ContentView: View {
                         .buttonStyle(.plain)
                     }
                     
-                    // Statistics
+                    // Health Metrics
+                    VStack(spacing: 12) {
+                        Text("Health Metrics")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        
+                        let columns = [
+                            GridItem(.flexible(), spacing: 12),
+                            GridItem(.flexible(), spacing: 12)
+                        ]
+                        
+                        LazyVGrid(columns: columns, spacing: 12) {
+                            // Total Workouts
+                            MetricCard(
+                                icon: "figure.strengthtraining.traditional",
+                                value: "\(MetricsCalculator.totalWorkouts(workoutHistory))",
+                                label: "Total Workouts",
+                                trend: nil,
+                                color: .blue
+                            )
+                            
+                            // Total Exercise Time
+                            MetricCard(
+                                icon: "clock.fill",
+                                value: MetricsCalculator.formatDuration(MetricsCalculator.totalExerciseTime(workoutHistory)),
+                                label: "Total Exercise Time",
+                                trend: nil,
+                                color: .green
+                            )
+                            
+                            // Average Duration
+                            if let avgDuration = MetricsCalculator.averageWorkoutDuration(workoutHistory) {
+                                MetricCard(
+                                    icon: "timer",
+                                    value: MetricsCalculator.formatAverageDuration(avgDuration),
+                                    label: "Avg Workout Duration",
+                                    trend: nil,
+                                    color: .orange
+                                )
+                            }
+                            
+                            // Workouts This Week
+                            MetricCard(
+                                icon: "calendar",
+                                value: "\(MetricsCalculator.workoutsThisWeek(workoutHistory))",
+                                label: "Workouts This Week",
+                                trend: nil,
+                                color: .red
+                            )
+                            
+                            // Body Weight Trend
+                            if let currentWeight = weightEntries.first {
+                                MetricCard(
+                                    icon: "scalemass",
+                                    value: "\(String(format: "%.1f", currentWeight.weight)) \(currentWeight.unit)",
+                                    label: "Body Weight",
+                                    trend: MetricsCalculator.bodyWeightTrend(
+                                        current: currentWeight,
+                                        previous: weightEntries.count > 1 ? weightEntries[1] : nil
+                                    ),
+                                    color: .purple
+                                )
+                            }
+                            
+                            // Most Used Exercise
+                            if let mostUsed = MetricsCalculator.mostUsedExercise(workoutHistory) {
+                                MetricCard(
+                                    icon: "star.fill",
+                                    value: mostUsed,
+                                    label: "Most Used Exercise",
+                                    trend: nil,
+                                    color: .yellow
+                                )
+                            }
+                        }
+                    }
+                    .padding()
+                    .background(Color.gray.opacity(0.05))
+                    .cornerRadius(10)
+                    
+                    // Statistics (simplified)
                     VStack(spacing: 12) {
                         Text("Statistics")
                             .font(.headline)
