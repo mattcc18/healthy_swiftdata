@@ -105,6 +105,9 @@ struct ActiveWorkoutView: View {
                                                 setNumber: setNumber
                                             )
                                         }
+                                    },
+                                    onDeleteSet: { setToDelete in
+                                        deleteSet(setToDelete)
                                     }
                                 )
                             }
@@ -205,6 +208,19 @@ struct ActiveWorkoutView: View {
         try? modelContext.save()
     }
     
+    private func deleteSet(_ set: WorkoutSet) {
+        // Remove set from WorkoutEntry's sets array
+        if let entry = set.workoutEntry {
+            entry.sets?.removeAll { $0.id == set.id }
+        }
+        
+        // Delete set from ModelContext
+        modelContext.delete(set)
+        
+        // Save context to persist deletion
+        try? modelContext.save()
+    }
+    
     // MARK: - Finish Workout
     
     private func finishWorkout(_ workout: ActiveWorkout) {
@@ -293,6 +309,7 @@ struct SetRowView: View {
     @Bindable var set: WorkoutSet
     let modelContext: ModelContext
     let onSetComplete: (Int?, String, Int) -> Void
+    let onDeleteSet: (WorkoutSet) -> Void
     
     var exerciseName: String {
         self.set.workoutEntry?.exerciseName ?? "Exercise"
@@ -353,6 +370,13 @@ struct SetRowView: View {
             .buttonStyle(.plain)
         }
         .padding(.vertical, 4)
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button(role: .destructive, action: {
+                onDeleteSet(set)
+            }) {
+                Label("Delete", systemImage: "trash")
+            }
+        }
     }
 }
 
