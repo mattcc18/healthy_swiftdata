@@ -109,8 +109,8 @@ struct WorkoutTemplateEditView: View {
             .sheet(isPresented: $showingAddExercise) {
                 AddExerciseToTemplateSheet(
                     exerciseTemplates: exerciseTemplates,
-                    onSelectExercise: { exerciseTemplate in
-                        addExerciseToTemplate(exerciseTemplate: exerciseTemplate)
+                    onSelectExercises: { exercises in
+                        addExercisesToTemplate(exerciseTemplates: exercises)
                     }
                 )
             }
@@ -138,6 +138,27 @@ struct WorkoutTemplateEditView: View {
         )
         
         templateExercises.append(newItem)
+        showingAddExercise = false
+    }
+    
+    private func addExercisesToTemplate(exerciseTemplates: [ExerciseTemplate]) {
+        let currentMaxOrder = templateExercises.isEmpty ? -1 : (templateExercises.map { $0.order }.max() ?? -1)
+        
+        for (index, exerciseTemplate) in exerciseTemplates.enumerated() {
+            let newItem = TemplateExerciseEditItem(
+                id: UUID(),
+                exerciseTemplate: exerciseTemplate,
+                exerciseName: exerciseTemplate.name,
+                order: currentMaxOrder + 1 + index,
+                targetReps: nil,
+                numberOfSets: 3,
+                restTimeSeconds: 90,
+                notes: nil
+            )
+            
+            templateExercises.append(newItem)
+        }
+        
         showingAddExercise = false
     }
     
@@ -269,8 +290,9 @@ struct TemplateExerciseEditRow: View {
 
 struct AddExerciseToTemplateSheet: View {
     let exerciseTemplates: [ExerciseTemplate]
-    let onSelectExercise: (ExerciseTemplate) -> Void
+    let onSelectExercises: ([ExerciseTemplate]) -> Void
     @State private var searchText = ""
+    @State private var selectedExercises: Set<UUID> = []
     @Environment(\.dismiss) private var dismiss
     
     var filteredTemplates: [ExerciseTemplate] {
@@ -289,7 +311,11 @@ struct AddExerciseToTemplateSheet: View {
             List {
                 ForEach(filteredTemplates) { template in
                     Button(action: {
-                        onSelectExercise(template)
+                        if selectedExercises.contains(template.id) {
+                            selectedExercises.remove(template.id)
+                        } else {
+                            selectedExercises.insert(template.id)
+                        }
                     }) {
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
@@ -305,19 +331,37 @@ struct AddExerciseToTemplateSheet: View {
                             }
                             
                             Spacer()
+                            
+                            if selectedExercises.contains(template.id) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.blue)
+                                    .font(.title3)
+                            } else {
+                                Image(systemName: "circle")
+                                    .foregroundColor(.gray)
+                                    .font(.title3)
+                            }
                         }
                         .padding(.vertical, 4)
                     }
                 }
             }
             .searchable(text: $searchText, prompt: "Search exercises")
-            .navigationTitle("Add Exercise")
+            .navigationTitle("Add Exercises")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") {
                         dismiss()
                     }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Add Selected (\(selectedExercises.count))") {
+                        let selected = exerciseTemplates.filter { selectedExercises.contains($0.id) }
+                        onSelectExercises(selected)
+                        dismiss()
+                    }
+                    .disabled(selectedExercises.isEmpty)
                 }
             }
         }
