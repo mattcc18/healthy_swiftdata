@@ -24,6 +24,8 @@ struct ContentView: View {
         activeWorkouts.first
     }
     
+    @State private var showingBodyWeightView = false
+    
     var body: some View {
         NavigationView {
             ScrollView {
@@ -141,11 +143,10 @@ struct ContentView: View {
                     .cornerRadius(10)
                     
                     // Body Weight Section
-                    if let currentWeight = weightEntries.first {
-                        Button(action: {
-                            // Navigate to weight history (could add weight tab or sheet)
-                            // For now, just show current weight
-                        }) {
+                    Button(action: {
+                        showingBodyWeightView = true
+                    }) {
+                        if let currentWeight = weightEntries.first {
                             VStack(spacing: 12) {
                                 HStack {
                                     Text("Body Weight")
@@ -181,8 +182,30 @@ struct ContentView: View {
                             .padding()
                             .background(Color.purple.opacity(0.1))
                             .cornerRadius(10)
+                        } else {
+                            // Empty state for body weight
+                            VStack(spacing: 12) {
+                                HStack {
+                                    Text("Body Weight")
+                                        .font(.headline)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                    Image(systemName: "scalemass")
+                                        .foregroundColor(.purple)
+                                }
+                                
+                                Text("Tap to record your weight")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .padding()
+                            .background(Color.purple.opacity(0.1))
+                            .cornerRadius(10)
                         }
-                        .buttonStyle(.plain)
+                    }
+                    .buttonStyle(.plain)
+                    .sheet(isPresented: $showingBodyWeightView) {
+                        BodyWeightView()
                     }
                     
                     // Health Metrics

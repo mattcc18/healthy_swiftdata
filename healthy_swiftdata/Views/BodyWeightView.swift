@@ -17,6 +17,8 @@ struct BodyWeightView: View {
     @State private var entryToDelete: BodyWeightEntry?
     @State private var showingDeleteConfirmation = false
     
+    @Environment(\.dismiss) private var dismiss
+    
     var body: some View {
         NavigationView {
             Group {
@@ -48,6 +50,11 @@ struct BodyWeightView: View {
             }
             .navigationTitle("Weight History")
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                         entryToEdit = nil
