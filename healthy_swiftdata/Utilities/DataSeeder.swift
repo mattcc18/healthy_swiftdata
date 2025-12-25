@@ -127,5 +127,117 @@ struct DataSeeder {
         // Save all exercises
         try? modelContext.save()
     }
+    
+    static func seedWorkoutTemplates(modelContext: ModelContext) {
+        // Check if templates already exist
+        let descriptor = FetchDescriptor<WorkoutTemplate>()
+        if let count = try? modelContext.fetchCount(descriptor), count > 0 {
+            return // Templates already seeded
+        }
+        
+        // Fetch exercise templates by name
+        let exerciseDescriptor = FetchDescriptor<ExerciseTemplate>()
+        let allExercises = (try? modelContext.fetch(exerciseDescriptor)) ?? []
+        
+        func findExercise(byName name: String) -> ExerciseTemplate? {
+            return allExercises.first { $0.name == name }
+        }
+        
+        // Push Day Template
+        if let benchPress = findExercise(byName: "Bench Press"),
+           let overheadPress = findExercise(byName: "Overhead Press"),
+           let tricepExtension = findExercise(byName: "Tricep Extension") {
+            
+            let pushDayTemplate = WorkoutTemplate(
+                name: "Push Day",
+                notes: "Chest, shoulders, and triceps workout"
+            )
+            modelContext.insert(pushDayTemplate)
+            
+            let pushDayExercises: [(ExerciseTemplate, Int, Int, Int)] = [
+                (benchPress, 3, 8, 90),
+                (overheadPress, 3, 8, 90),
+                (tricepExtension, 3, 8, 90)
+            ]
+            
+            for (index, (exercise, sets, reps, rest)) in pushDayExercises.enumerated() {
+                let templateExercise = TemplateExercise(
+                    exerciseTemplate: exercise,
+                    exerciseName: exercise.name,
+                    order: index,
+                    targetReps: reps,
+                    numberOfSets: sets,
+                    restTimeSeconds: rest
+                )
+                templateExercise.workoutTemplate = pushDayTemplate
+                modelContext.insert(templateExercise)
+            }
+        }
+        
+        // Pull Day Template
+        if let pullUp = findExercise(byName: "Pull-up"),
+           let barbellRow = findExercise(byName: "Barbell Row"),
+           let bicepCurl = findExercise(byName: "Dumbbell Curl") {
+            
+            let pullDayTemplate = WorkoutTemplate(
+                name: "Pull Day",
+                notes: "Back and biceps workout"
+            )
+            modelContext.insert(pullDayTemplate)
+            
+            let pullDayExercises: [(ExerciseTemplate, Int, Int, Int)] = [
+                (pullUp, 3, 8, 90),
+                (barbellRow, 3, 8, 90),
+                (bicepCurl, 3, 8, 90)
+            ]
+            
+            for (index, (exercise, sets, reps, rest)) in pullDayExercises.enumerated() {
+                let templateExercise = TemplateExercise(
+                    exerciseTemplate: exercise,
+                    exerciseName: exercise.name,
+                    order: index,
+                    targetReps: reps,
+                    numberOfSets: sets,
+                    restTimeSeconds: rest
+                )
+                templateExercise.workoutTemplate = pullDayTemplate
+                modelContext.insert(templateExercise)
+            }
+        }
+        
+        // Leg Day Template
+        if let squat = findExercise(byName: "Squat"),
+           let deadlift = findExercise(byName: "Deadlift"),
+           let lunges = findExercise(byName: "Lunges") {
+            
+            let legDayTemplate = WorkoutTemplate(
+                name: "Leg Day",
+                notes: "Legs and glutes workout"
+            )
+            modelContext.insert(legDayTemplate)
+            
+            let legDayExercises: [(ExerciseTemplate, Int, Int, Int)] = [
+                (squat, 3, 8, 90),
+                (deadlift, 3, 8, 90),
+                (lunges, 3, 8, 90)
+            ]
+            
+            for (index, (exercise, sets, reps, rest)) in legDayExercises.enumerated() {
+                let templateExercise = TemplateExercise(
+                    exerciseTemplate: exercise,
+                    exerciseName: exercise.name,
+                    order: index,
+                    targetReps: reps,
+                    numberOfSets: sets,
+                    restTimeSeconds: rest
+                )
+                templateExercise.workoutTemplate = legDayTemplate
+                modelContext.insert(templateExercise)
+            }
+        }
+        
+        // Save all templates
+        try? modelContext.save()
+    }
 }
 

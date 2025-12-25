@@ -116,6 +116,24 @@ struct ContentView: View {
                             .cornerRadius(8)
                         }
                         .buttonStyle(.plain)
+                        
+                        Button(action: {
+                            selectedTab = 4 // Switch to Templates tab
+                        }) {
+                            HStack {
+                                Image(systemName: "doc.text")
+                                    .foregroundColor(.blue)
+                                Text("Browse Templates")
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(.secondary)
+                                    .font(.caption)
+                            }
+                            .padding()
+                            .background(Color.gray.opacity(0.1))
+                            .cornerRadius(8)
+                        }
+                        .buttonStyle(.plain)
                     }
                     .padding()
                     .background(Color.gray.opacity(0.05))
@@ -140,6 +158,8 @@ struct ContentView: View {
             .onAppear {
                 // Seed exercise templates on first launch
                 DataSeeder.seedExerciseTemplates(modelContext: modelContext)
+                // Seed workout templates on first launch (after exercises are seeded)
+                DataSeeder.seedWorkoutTemplates(modelContext: modelContext)
                 checkForResume()
             }
             .onChange(of: activeWorkouts) { _, _ in
