@@ -13,6 +13,7 @@ struct ContentView: View {
     @Query private var activeWorkouts: [ActiveWorkout]
     @Query private var workoutHistory: [WorkoutHistory]
     @Query private var exerciseTemplates: [ExerciseTemplate]
+    @Query(sort: \BodyWeightEntry.recordedAt, order: .reverse) private var weightEntries: [BodyWeightEntry]
     
     @Binding var selectedTab: Int
     @State private var showingResumePrompt = false
@@ -138,6 +139,51 @@ struct ContentView: View {
                     .padding()
                     .background(Color.gray.opacity(0.05))
                     .cornerRadius(10)
+                    
+                    // Body Weight Section
+                    if let currentWeight = weightEntries.first {
+                        Button(action: {
+                            // Navigate to weight history (could add weight tab or sheet)
+                            // For now, just show current weight
+                        }) {
+                            VStack(spacing: 12) {
+                                HStack {
+                                    Text("Body Weight")
+                                        .font(.headline)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                    Image(systemName: "scalemass")
+                                        .foregroundColor(.purple)
+                                }
+                                
+                                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                                    Text("\(String(format: "%.1f", currentWeight.weight))")
+                                        .font(.system(size: 32, weight: .bold))
+                                    Text(currentWeight.unit)
+                                        .font(.title3)
+                                        .foregroundColor(.secondary)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                
+                                if weightEntries.count > 1 {
+                                    let previousWeight = weightEntries[1]
+                                    let change = currentWeight.weight - previousWeight.weight
+                                    let changeText = change >= 0 ? "+\(String(format: "%.1f", change))" : String(format: "%.1f", change)
+                                    HStack {
+                                        Image(systemName: change >= 0 ? "arrow.up" : "arrow.down")
+                                            .foregroundColor(change >= 0 ? .green : .red)
+                                        Text("\(changeText) \(currentWeight.unit) from last entry")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                }
+                            }
+                            .padding()
+                            .background(Color.purple.opacity(0.1))
+                            .cornerRadius(10)
+                        }
+                        .buttonStyle(.plain)
+                    }
                     
                     // Statistics
                     VStack(spacing: 12) {
