@@ -9,9 +9,14 @@ import SwiftUI
 import SwiftData
 
 struct ExercisesView: View {
+    @Environment(\.modelContext) private var modelContext
     @Query private var exerciseTemplates: [ExerciseTemplate]
     @State private var searchText = ""
     @State private var selectedCategory: String?
+    @State private var showingEditSheet = false
+    @State private var exerciseToEdit: ExerciseTemplate?
+    @State private var exerciseToDelete: ExerciseTemplate?
+    @State private var showingDeleteConfirmation = false
     
     var filteredExercises: [ExerciseTemplate] {
         var filtered = exerciseTemplates
@@ -93,6 +98,22 @@ struct ExercisesView: View {
                     // Show flat list when category is selected
                     ForEach(filteredExercises.sorted(by: { $0.name < $1.name }), id: \.id) { template in
                         ExerciseRow(template: template)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button {
+                                    exerciseToEdit = template
+                                    showingEditSheet = true
+                                } label: {
+                                    Label("Edit", systemImage: "pencil")
+                                }
+                                .tint(.blue)
+                                
+                                Button(role: .destructive) {
+                                    exerciseToDelete = template
+                                    showingDeleteConfirmation = true
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
                     }
                 } else {
                     // Show grouped by category
@@ -101,6 +122,22 @@ struct ExercisesView: View {
                             if let exercises = groupedExercises[category] {
                                 ForEach(exercises.sorted(by: { $0.name < $1.name }), id: \.id) { template in
                                     ExerciseRow(template: template)
+                                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                            Button {
+                                                exerciseToEdit = template
+                                                showingEditSheet = true
+                                            } label: {
+                                                Label("Edit", systemImage: "pencil")
+                                            }
+                                            .tint(.blue)
+                                            
+                                            Button(role: .destructive) {
+                                                exerciseToDelete = template
+                                                showingDeleteConfirmation = true
+                                            } label: {
+                                                Label("Delete", systemImage: "trash")
+                                            }
+                                        }
                                 }
                             }
                         }
@@ -109,7 +146,38 @@ struct ExercisesView: View {
             }
             .searchable(text: $searchText, prompt: "Search exercises")
             .navigationTitle("Exercises")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        exerciseToEdit = nil
+                        showingEditSheet = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                }
+            }
+            .sheet(isPresented: $showingEditSheet) {
+                ExerciseEditView(exercise: exerciseToEdit)
+            }
+            .alert("Delete Exercise", isPresented: $showingDeleteConfirmation) {
+                Button("Cancel", role: .cancel) { }
+                Button("Delete", role: .destructive) {
+                    if let exercise = exerciseToDelete {
+                        deleteExercise(exercise)
+                    }
+                }
+            } message: {
+                if let exercise = exerciseToDelete {
+                    Text("Are you sure you want to delete \"\(exercise.name)\"? This will not affect workout templates that use this exercise.")
+                }
+            }
         }
+    }
+    
+    private func deleteExercise(_ exercise: ExerciseTemplate) {
+        modelContext.delete(exercise)
+        try? modelContext.save()
+        exerciseToDelete = nil
     }
 }
 
