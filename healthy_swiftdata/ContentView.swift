@@ -127,7 +127,7 @@ struct ContentView: View {
                             .font(.headline)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         
-                        StatRow(label: "Exercise Templates", value: "\(exerciseTemplates.count)")
+                        StatRow(label: "Exercises", value: "\(exerciseTemplates.count)")
                         StatRow(label: "Workout History", value: "\(workoutHistory.count)")
                     }
                     .padding()

@@ -396,29 +396,79 @@ struct AddExerciseSheet: View {
     let exerciseTemplates: [ExerciseTemplate]
     let onAddExercise: (String) -> Void
     @State private var searchText = ""
+    @State private var selectedCategory: String? = "Strength"
     @Environment(\.dismiss) private var dismiss
     
+    var availableCategories: [String] {
+        let categories = Set(exerciseTemplates.compactMap { $0.category }.filter { !$0.isEmpty })
+        return Array(categories).sorted()
+    }
+    
     var filteredTemplates: [ExerciseTemplate] {
-        if searchText.isEmpty {
-            return exerciseTemplates
-        } else {
-            return exerciseTemplates.filter { template in
+        var filtered = exerciseTemplates
+        
+        // Filter by category
+        if let category = selectedCategory {
+            filtered = filtered.filter { $0.category == category }
+        }
+        
+        // Filter by search text
+        if !searchText.isEmpty {
+            filtered = filtered.filter { template in
                 template.name.localizedCaseInsensitiveContains(searchText) ||
                 template.muscleGroups.contains { $0.localizedCaseInsensitiveContains(searchText) }
             }
         }
+        
+        return filtered
     }
     
     var body: some View {
         NavigationView {
             List {
+                // Category filter buttons
+                if !availableCategories.isEmpty {
+                    Section {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 12) {
+                                // "All" button
+                                CategoryFilterButton(
+                                    title: "All",
+                                    isSelected: selectedCategory == nil,
+                                    action: {
+                                        selectedCategory = nil
+                                    }
+                                )
+                                
+                                // Category buttons
+                                ForEach(availableCategories, id: \.self) { category in
+                                    CategoryFilterButton(
+                                        title: category,
+                                        isSelected: selectedCategory == category,
+                                        action: {
+                                            selectedCategory = selectedCategory == category ? nil : category
+                                        }
+                                    )
+                                }
+                            }
+                            .padding(.horizontal)
+                        }
+                        .listRowInsets(EdgeInsets())
+                    }
+                }
+                
                 if exerciseTemplates.isEmpty {
                     Section {
-                        Text("No exercise templates available")
+                        Text("No exercises available")
+                            .foregroundColor(.secondary)
+                    }
+                } else if filteredTemplates.isEmpty {
+                    Section {
+                        Text("No exercises found")
                             .foregroundColor(.secondary)
                     }
                 } else {
-                    Section(header: Text("Exercise Templates")) {
+                    Section(header: Text("Exercises")) {
                         ForEach(filteredTemplates, id: \.id) { template in
                             Button(action: {
                                 onAddExercise(template.name)
@@ -452,6 +502,25 @@ struct AddExerciseSheet: View {
                     }
                 }
             }
+        }
+    }
+}
+
+struct CategoryFilterButton: View {
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.subheadline)
+                .fontWeight(isSelected ? .semibold : .regular)
+                .foregroundColor(isSelected ? .white : .primary)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(isSelected ? Color.blue : Color.gray.opacity(0.2))
+                .cornerRadius(20)
         }
     }
 }
