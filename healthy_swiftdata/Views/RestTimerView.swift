@@ -13,6 +13,7 @@ import Combine
 class RestTimerManager: ObservableObject {
     @Published var timeRemaining: Int = 0 // in seconds
     @Published var isActive: Bool = false
+    @Published var isMinimized: Bool = false
     @Published var exerciseName: String = ""
     @Published var setNumber: Int = 0
     
@@ -25,6 +26,7 @@ class RestTimerManager: ObservableObject {
         self.exerciseName = exerciseName
         self.setNumber = setNumber
         self.isActive = true
+        self.isMinimized = false // Reset minimized state when starting new timer
         
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self = self else { return }
@@ -49,10 +51,19 @@ class RestTimerManager: ObservableObject {
         }
     }
     
+    func minimizeTimer() {
+        isMinimized = true
+    }
+    
+    func restoreTimer() {
+        isMinimized = false
+    }
+    
     func stopTimer() {
         timer?.invalidate()
         timer = nil
         isActive = false
+        isMinimized = false
     }
     
     deinit {
@@ -74,6 +85,18 @@ struct RestTimerView: View {
     
     var body: some View {
         VStack(spacing: 24) {
+            // Header with minimize button
+            HStack {
+                Spacer()
+                Button(action: {
+                    timerManager.minimizeTimer()
+                }) {
+                    Image(systemName: "minus.circle.fill")
+                        .font(.title3)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
             // Exercise and set info
             VStack(spacing: 8) {
                 Text(timerManager.exerciseName)
@@ -153,6 +176,49 @@ struct RestTimerView: View {
     }
 }
 
+// MARK: - Minimized Timer View
+
+struct MinimizedTimerView: View {
+    @ObservedObject var timerManager: RestTimerManager
+    let onRestore: () -> Void
+    
+    var formattedTime: String {
+        let minutes = timerManager.timeRemaining / 60
+        let seconds = timerManager.timeRemaining % 60
+        return String(format: "%d:%02d", minutes, seconds)
+    }
+    
+    var body: some View {
+        Button(action: {
+            timerManager.restoreTimer()
+            onRestore()
+        }) {
+            HStack(spacing: 12) {
+                Image(systemName: "timer")
+                    .font(.title3)
+                    .foregroundColor(.blue)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(timerManager.exerciseName)
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary)
+                    Text(formattedTime)
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundColor(.blue)
+                        .monospacedDigit()
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(Color(.systemBackground))
+            .cornerRadius(25)
+            .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 // MARK: - Rest Timer Overlay
 
 struct RestTimerOverlay: ViewModifier {
@@ -164,18 +230,37 @@ struct RestTimerOverlay: ViewModifier {
             content
             
             if timerManager.isActive {
-                // Background overlay
-                Color.black.opacity(0.4)
-                    .ignoresSafeArea()
-                    .onTapGesture {
-                        // Allow tapping outside to dismiss (optional)
+                if timerManager.isMinimized {
+                    // Minimized timer view
+                    VStack {
+                        HStack {
+                            Spacer()
+                            MinimizedTimerView(timerManager: timerManager) {
+                                // onRestore callback - timer will be restored by the view itself
+                            }
+                            .padding(.trailing, 20)
+                            .padding(.top, 20)
+                        }
+                        Spacer()
                     }
-                
-                // Timer card
-                VStack {
-                    Spacer()
-                    RestTimerView(timerManager: timerManager, onDismiss: onDismiss)
-                    Spacer()
+                } else {
+                    // Full timer overlay
+                    ZStack {
+                        // Background overlay
+                        Color.black.opacity(0.4)
+                            .ignoresSafeArea()
+                            .onTapGesture {
+                                // Allow tapping outside to minimize
+                                timerManager.minimizeTimer()
+                            }
+                        
+                        // Timer card
+                        VStack {
+                            Spacer()
+                            RestTimerView(timerManager: timerManager, onDismiss: onDismiss)
+                            Spacer()
+                        }
+                    }
                 }
             }
         }
