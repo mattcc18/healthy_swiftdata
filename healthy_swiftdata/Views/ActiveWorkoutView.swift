@@ -17,6 +17,12 @@ struct ActiveWorkoutView: View {
     @State private var showingFinishConfirmation = false
     @StateObject private var restTimerManager = RestTimerManager()
     
+    // MARK: - Helper Functions
+    
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
+    
     private var activeWorkout: ActiveWorkout? {
         activeWorkouts.first
     }
@@ -98,6 +104,7 @@ struct ActiveWorkoutView: View {
                                     set: set,
                                     modelContext: modelContext,
                                     onSetComplete: { restTime, exerciseName, setNumber in
+                                        dismissKeyboard()
                                         if let restTime = restTime, restTime > 0 {
                                             restTimerManager.startTimer(
                                                 seconds: restTime,
@@ -354,6 +361,9 @@ struct SetRowView: View {
             
             // Completion toggle
             Button(action: {
+                // Dismiss keyboard before completing set
+                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                
                 let wasComplete = set.completedAt != nil
                 set.completedAt = set.completedAt == nil ? Date() : nil
                 try? modelContext.save()
