@@ -17,6 +17,7 @@ final class WorkoutHistory {
     var notes: String?
     var durationSeconds: Int? // Calculated: completedAt - startedAt
     var totalVolume: Double? // Calculated: sum of (reps * weight) for all sets
+    var workoutType: String? // "strength", "stretching", or "cardio" - copied from template
     
     // Exercise entries (snapshot from active workout)
     @Relationship(deleteRule: .cascade) var entries: [WorkoutEntry]?
@@ -33,6 +34,7 @@ final class WorkoutHistory {
         notes: String? = nil,
         durationSeconds: Int? = nil,
         totalVolume: Double? = nil,
+        workoutType: String? = nil,
         isSynced: Bool = false,
         syncedAt: Date? = nil
     ) {
@@ -43,6 +45,7 @@ final class WorkoutHistory {
         self.notes = notes
         self.durationSeconds = durationSeconds
         self.totalVolume = totalVolume
+        self.workoutType = workoutType
         self.isSynced = isSynced
         self.syncedAt = syncedAt
     }

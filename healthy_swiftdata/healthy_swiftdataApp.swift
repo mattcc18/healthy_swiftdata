@@ -23,7 +23,8 @@ struct healthy_swiftdataApp: App {
             WorkoutHistory.self,
             WorkoutTemplate.self,
             TemplateExercise.self,
-            BodyWeightEntry.self
+            BodyWeightEntry.self,
+            BodyMeasurement.self
         ])
         
         // Configure model container with in-memory storage for development
@@ -40,6 +41,13 @@ struct healthy_swiftdataApp: App {
     var body: some Scene {
         WindowGroup {
             MainTabView()
+                .preferredColorScheme(.dark)
+                .onAppear {
+                    // Request notification permissions on app launch
+                    Task {
+                        _ = try? await NotificationManager.shared.requestAuthorization()
+                    }
+                }
         }
         .modelContainer(container)
     }

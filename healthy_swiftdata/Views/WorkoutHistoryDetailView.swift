@@ -14,6 +14,7 @@ struct WorkoutHistoryDetailView: View {
     let workout: WorkoutHistory
     
     @State private var showingDeleteConfirmation = false
+    @State private var showingEditView = false
     
     var body: some View {
         List {
@@ -22,34 +23,36 @@ struct WorkoutHistoryDetailView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Completed: \(workout.completedAt, style: .date)")
                         .font(.headline)
+                        .foregroundColor(AppTheme.textPrimary)
                     
                     if let duration = workout.durationSeconds {
                         Text("Duration: \(formatDuration(duration))")
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(AppTheme.textSecondary)
                     }
                     
                     if let templateName = workout.templateName {
                         Text("Template: \(templateName)")
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(AppTheme.textSecondary)
                     }
                     
                     if let volume = workout.totalVolume {
                         Text("Total Volume: \(String(format: "%.1f kg", volume))")
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(AppTheme.textSecondary)
                     }
                     
                     if let notes = workout.notes, !notes.isEmpty {
                         Text("Notes: \(notes)")
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(AppTheme.textSecondary)
                             .padding(.top, 4)
                     }
                 }
                 .padding(.vertical, 4)
             }
+            .listRowBackground(AppTheme.cardPrimary)
             
             // Exercises and sets
             if let entries = workout.entries, !entries.isEmpty {
@@ -61,35 +64,51 @@ struct WorkoutHistoryDetailView: View {
                             }
                         } else {
                             Text("No sets")
-                                .foregroundColor(.secondary)
+                                .foregroundColor(AppTheme.textSecondary)
                                 .font(.caption)
                         }
                         
                         if let notes = entry.notes, !notes.isEmpty {
                             Text("Notes: \(notes)")
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(AppTheme.textSecondary)
                                 .padding(.top, 4)
                         }
                     }
+                    .listRowBackground(AppTheme.cardPrimary)
                 }
             } else {
                 Section {
                     Text("No exercises")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(AppTheme.textSecondary)
                 }
+                .listRowBackground(AppTheme.cardPrimary)
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(AppTheme.background)
+        .listRowBackground(AppTheme.cardPrimary)
         .navigationTitle("Workout Details")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button(role: .destructive) {
-                    showingDeleteConfirmation = true
-                } label: {
-                    Label("Delete", systemImage: "trash")
+                HStack {
+                    Button {
+                        showingEditView = true
+                    } label: {
+                        Label("Edit", systemImage: "pencil")
+                    }
+                    
+                    Button(role: .destructive) {
+                        showingDeleteConfirmation = true
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
                 }
             }
+        }
+        .navigationDestination(isPresented: $showingEditView) {
+            WorkoutHistoryEditView(workout: workout)
         }
         .alert("Delete Workout", isPresented: $showingDeleteConfirmation) {
             Button("Cancel", role: .cancel) { }
@@ -128,6 +147,7 @@ struct SetDetailRow: View {
             // Set number
             Text("Set \(set.setNumber)")
                 .font(.headline)
+                .foregroundColor(AppTheme.textPrimary)
                 .frame(width: 60, alignment: .leading)
             
             Spacer()
@@ -137,18 +157,19 @@ struct SetDetailRow: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Reps")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(AppTheme.textSecondary)
                     Text("\(reps)")
                         .font(.body)
+                        .foregroundColor(AppTheme.textPrimary)
                 }
             } else {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Reps")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(AppTheme.textSecondary)
                     Text("-")
                         .font(.body)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(AppTheme.textSecondary)
                 }
             }
             
@@ -159,18 +180,19 @@ struct SetDetailRow: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Weight")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(AppTheme.textSecondary)
                     Text(String(format: "%.1f kg", weight))
                         .font(.body)
+                        .foregroundColor(AppTheme.textPrimary)
                 }
             } else {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Weight")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(AppTheme.textSecondary)
                     Text("-")
                         .font(.body)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(AppTheme.textSecondary)
                 }
             }
             
@@ -178,7 +200,7 @@ struct SetDetailRow: View {
             
             // Completion status
             Image(systemName: set.completedAt != nil ? "checkmark.circle.fill" : "circle")
-                .foregroundColor(set.completedAt != nil ? .green : .gray)
+                .foregroundColor(set.completedAt != nil ? AppTheme.accentPrimary : AppTheme.textTertiary)
                 .font(.title3)
         }
         .padding(.vertical, 4)
@@ -201,4 +223,8 @@ struct SetDetailRow: View {
     }
     .modelContainer(container)
 }
+
+
+
+
 

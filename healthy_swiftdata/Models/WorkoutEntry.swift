@@ -16,6 +16,7 @@ final class WorkoutEntry {
     var order: Int
     var notes: String?
     var createdAt: Date
+    var isWarmup: Bool?
     
     // Relationship to ActiveWorkout
     var activeWorkout: ActiveWorkout?
@@ -32,7 +33,8 @@ final class WorkoutEntry {
         exerciseName: String,
         order: Int,
         notes: String? = nil,
-        createdAt: Date = Date()
+        createdAt: Date = Date(),
+        isWarmup: Bool? = false
     ) {
         self.id = id
         self.exerciseTemplate = exerciseTemplate
@@ -40,6 +42,7 @@ final class WorkoutEntry {
         self.order = order
         self.notes = notes
         self.createdAt = createdAt
+        self.isWarmup = isWarmup
     }
 }
 

@@ -54,6 +54,7 @@ struct ExerciseEditView: View {
                 Section("Exercise Details") {
                     TextField("Exercise Name", text: $name)
                         .textInputAutocapitalization(.words)
+                        .foregroundColor(AppTheme.textPrimary)
                     
                     Picker("Category", selection: $category) {
                         Text("Select Category").tag(nil as String?)
@@ -65,13 +66,19 @@ struct ExerciseEditView: View {
                     TextField("Muscle Groups (comma-separated)", text: $muscleGroupsText, axis: .vertical)
                         .lineLimit(2...4)
                         .textInputAutocapitalization(.words)
+                        .foregroundColor(AppTheme.textPrimary)
                 }
+                .listRowBackground(AppTheme.cardPrimary)
                 
                 Section("Notes") {
                     TextField("Notes (Optional)", text: $notes, axis: .vertical)
                         .lineLimit(3...6)
+                        .foregroundColor(AppTheme.textPrimary)
                 }
+                .listRowBackground(AppTheme.cardPrimary)
             }
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background)
             .navigationTitle(exercise == nil ? "New Exercise" : "Edit Exercise")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -122,4 +129,8 @@ struct ExerciseEditView: View {
     ExerciseEditView()
         .modelContainer(for: [ExerciseTemplate.self], inMemory: true)
 }
+
+
+
+
 

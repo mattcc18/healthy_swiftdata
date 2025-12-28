@@ -46,10 +46,13 @@ struct BodyWeightEntryForm: View {
     var body: some View {
         NavigationView {
             Form {
+                Color.clear.frame(height: 0)
+                    .background(AppTheme.background)
                 Section("Weight") {
                     HStack {
                         TextField("Weight", text: $weight)
                             .keyboardType(.decimalPad)
+                            .foregroundColor(AppTheme.textPrimary)
                         
                         Picker("Unit", selection: $unit) {
                             ForEach(units, id: \.self) { unit in
@@ -62,12 +65,17 @@ struct BodyWeightEntryForm: View {
                     
                     DatePicker("Date", selection: $recordedAt, displayedComponents: [.date, .hourAndMinute])
                 }
+                .listRowBackground(AppTheme.cardPrimary)
                 
                 Section("Notes") {
                     TextField("Notes (Optional)", text: $notes, axis: .vertical)
                         .lineLimit(3...6)
+                        .foregroundColor(AppTheme.textPrimary)
                 }
+                .listRowBackground(AppTheme.cardPrimary)
             }
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background)
             .navigationTitle(entry == nil ? "Add Weight" : "Edit Weight")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

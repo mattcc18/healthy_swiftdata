@@ -19,6 +19,7 @@ final class ExerciseTemplate {
     var notes: String?
     var createdAt: Date
     var lastUsed: Date?
+    var isFavorite: Bool?
     
     init(
         id: UUID = UUID(),
@@ -29,7 +30,8 @@ final class ExerciseTemplate {
         iconColor: String = "#007AFF",
         notes: String? = nil,
         createdAt: Date = Date(),
-        lastUsed: Date? = nil
+        lastUsed: Date? = nil,
+        isFavorite: Bool? = false
     ) {
         self.id = id
         self.name = name
@@ -40,6 +42,7 @@ final class ExerciseTemplate {
         self.notes = notes
         self.createdAt = createdAt
         self.lastUsed = lastUsed
+        self.isFavorite = isFavorite
     }
 }
 

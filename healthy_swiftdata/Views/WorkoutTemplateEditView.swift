@@ -18,6 +18,7 @@ struct WorkoutTemplateEditView: View {
     @State private var templateName: String
     @State private var templateNotes: String
     @State private var templateExercises: [TemplateExerciseEditItem]
+    @State private var selectedWorkoutType: WorkoutType?
     @State private var showingAddExercise = false
     
     init(template: WorkoutTemplate?) {
@@ -26,6 +27,7 @@ struct WorkoutTemplateEditView: View {
         if let template = template {
             _templateName = State(initialValue: template.name)
             _templateNotes = State(initialValue: template.notes ?? "")
+            _selectedWorkoutType = State(initialValue: template.workoutType.flatMap { WorkoutType(rawValue: $0) })
             
             // Load existing template exercises
             let exercises = template.exercises?.sorted(by: { $0.order < $1.order }) ?? []
@@ -45,6 +47,7 @@ struct WorkoutTemplateEditView: View {
             _templateName = State(initialValue: "")
             _templateNotes = State(initialValue: "")
             _templateExercises = State(initialValue: [])
+            _selectedWorkoutType = State(initialValue: nil)
         }
     }
     
@@ -54,15 +57,32 @@ struct WorkoutTemplateEditView: View {
                 Section("Template Details") {
                     TextField("Template Name", text: $templateName)
                         .textInputAutocapitalization(.words)
+                        .foregroundColor(AppTheme.textPrimary)
+                    
+                    Picker("Workout Type", selection: $selectedWorkoutType) {
+                        Text("None").tag(nil as WorkoutType?)
+                        ForEach(WorkoutType.allCases, id: \.self) { type in
+                            HStack {
+                                Circle()
+                                    .fill(type.color)
+                                    .frame(width: 12, height: 12)
+                                Text(type.displayName)
+                            }
+                            .tag(type as WorkoutType?)
+                        }
+                    }
+                    .foregroundColor(AppTheme.textPrimary)
                     
                     TextField("Notes (Optional)", text: $templateNotes, axis: .vertical)
                         .lineLimit(3...6)
+                        .foregroundColor(AppTheme.textPrimary)
                 }
+                .listRowBackground(AppTheme.cardPrimary)
                 
                 Section("Exercises") {
                     if templateExercises.isEmpty {
                         Text("No exercises added yet")
-                            .foregroundColor(.secondary)
+                            .foregroundColor(AppTheme.textSecondary)
                             .font(.caption)
                     } else {
                         ForEach(templateExercises.indices, id: \.self) { index in
@@ -87,10 +107,13 @@ struct WorkoutTemplateEditView: View {
                             Image(systemName: "plus.circle.fill")
                             Text("Add Exercise")
                         }
-                        .foregroundColor(.blue)
+                        .foregroundColor(AppTheme.accentPrimary)
                     }
                 }
+                .listRowBackground(AppTheme.cardPrimary)
             }
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background)
             .navigationTitle(template == nil ? "New Template" : "Edit Template")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -167,6 +190,7 @@ struct WorkoutTemplateEditView: View {
             // Update existing template
             existingTemplate.name = templateName
             existingTemplate.notes = templateNotes.isEmpty ? nil : templateNotes
+            existingTemplate.workoutType = selectedWorkoutType?.rawValue
             
             // Delete old exercises
             if let oldExercises = existingTemplate.exercises {
@@ -193,7 +217,8 @@ struct WorkoutTemplateEditView: View {
             // Create new template
             let newTemplate = WorkoutTemplate(
                 name: templateName,
-                notes: templateNotes.isEmpty ? nil : templateNotes
+                notes: templateNotes.isEmpty ? nil : templateNotes,
+                workoutType: selectedWorkoutType?.rawValue
             )
             modelContext.insert(newTemplate)
             
@@ -238,10 +263,11 @@ struct TemplateExerciseEditRow: View {
             HStack {
                 Text(item.exerciseName)
                     .font(.headline)
+                    .foregroundColor(AppTheme.textPrimary)
                 Spacer()
                 Button(action: onDelete) {
                     Image(systemName: "trash")
-                        .foregroundColor(.red)
+                        .foregroundColor(AppTheme.gradientOrangeStart)
                 }
             }
             
@@ -249,7 +275,7 @@ struct TemplateExerciseEditRow: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Sets")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(AppTheme.textSecondary)
                     Stepper(value: $item.numberOfSets, in: 1...10) {
                         Text("\(item.numberOfSets)")
                             .font(.body)
@@ -260,21 +286,23 @@ struct TemplateExerciseEditRow: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Target Reps")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(AppTheme.textSecondary)
                     TextField("Reps", value: $item.targetReps, format: .number)
                         .keyboardType(.numberPad)
                         .textFieldStyle(.roundedBorder)
                         .frame(width: 80)
+                        .background(AppTheme.cardTertiary)
                 }
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Rest (sec)")
                         .font(.caption)
-                        .foregroundColor(.secondary)
-                    TextField("Rest", value: $item.restTimeSeconds, format: .number)
+                        .foregroundColor(AppTheme.textSecondary)
+                        TextField("Rest", value: $item.restTimeSeconds, format: .number)
                         .keyboardType(.numberPad)
                         .textFieldStyle(.roundedBorder)
                         .frame(width: 80)
+                        .background(AppTheme.cardTertiary)
                         .onChange(of: item.restTimeSeconds) { oldValue, newValue in
                             // Ensure rest time is not negative
                             if newValue < 0 {
@@ -366,12 +394,12 @@ struct AddExerciseToTemplateSheet: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(template.name)
                                     .font(.headline)
-                                    .foregroundColor(.primary)
+                                    .foregroundColor(AppTheme.textPrimary)
                                 
                                 if !template.muscleGroups.isEmpty {
                                     Text(template.muscleGroups.joined(separator: ", "))
                                         .font(.caption)
-                                        .foregroundColor(.secondary)
+                                        .foregroundColor(AppTheme.textSecondary)
                                 }
                             }
                             
@@ -379,11 +407,11 @@ struct AddExerciseToTemplateSheet: View {
                             
                             if selectedExercises.contains(template.id) {
                                 Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(.blue)
+                                    .foregroundColor(AppTheme.accentPrimary)
                                     .font(.title3)
                             } else {
                                 Image(systemName: "circle")
-                                    .foregroundColor(.gray)
+                                    .foregroundColor(AppTheme.textTertiary)
                                     .font(.title3)
                             }
                         }
@@ -391,6 +419,8 @@ struct AddExerciseToTemplateSheet: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background)
             .searchable(text: $searchText, prompt: "Search exercises")
             .navigationTitle("Add Exercises")
             .navigationBarTitleDisplayMode(.inline)

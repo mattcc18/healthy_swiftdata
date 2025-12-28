@@ -7,15 +7,31 @@
 
 import SwiftUI
 import SwiftData
+import HealthKit
 
 struct ActiveWorkoutView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @Query private var activeWorkouts: [ActiveWorkout]
     @Query private var exerciseTemplates: [ExerciseTemplate]
+    @Query(sort: [
+        SortDescriptor(\WorkoutTemplate.lastUsed, order: .reverse),
+        SortDescriptor(\WorkoutTemplate.createdAt, order: .reverse)
+    ]) private var workoutTemplates: [WorkoutTemplate]
     @State private var showingAddExercise = false
     @State private var showingFinishConfirmation = false
+    @State private var showingCreateTemplate = false
+    @State private var selectedTemplateForEdit: WorkoutTemplate?
+    @State private var showingDeleteConfirmation = false
+    @State private var templateToDelete: WorkoutTemplate?
+    @State private var showingDiscardConfirmation = false
+    @State private var templateToStart: WorkoutTemplate?
     @StateObject private var restTimerManager = RestTimerManager()
+    @State private var workoutElapsedTime: TimeInterval = 0
+    @State private var workoutTimer: Timer?
+    @State private var currentExerciseIndex: Int = 0
+    @State private var selectedExerciseIndex: Int = 0
     
     // MARK: - Helper Functions
     
@@ -33,16 +49,25 @@ struct ActiveWorkoutView: View {
                 if let workout = activeWorkout {
                     workoutContent(workout: workout)
                 } else {
-                    emptyState
+                    templatesView
                 }
             }
-            .navigationTitle("Active Workout")
+            .navigationTitle(activeWorkout != nil ? "" : "Start a Workout")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     if activeWorkout != nil {
                         Button("Finish") {
                             showingFinishConfirmation = true
                         }
+                        .foregroundColor(AppTheme.gradientOrangeStart)
+                    } else {
+                        Button(action: {
+                            showingCreateTemplate = true
+                        }) {
+                            Image(systemName: "plus")
+                        }
+                        .foregroundColor(AppTheme.accentPrimary)
                     }
                 }
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -56,8 +81,12 @@ struct ActiveWorkoutView: View {
             .sheet(isPresented: $showingAddExercise) {
                 AddExerciseSheet(
                     exerciseTemplates: exerciseTemplates,
-                    onAddExercise: { exerciseName in
-                        addExercise(name: exerciseName, to: activeWorkout!)
+                    onAddExercises: { exerciseNames in
+                        if let workout = activeWorkout {
+                            for exerciseName in exerciseNames {
+                                addExercise(name: exerciseName, to: workout)
+                            }
+                        }
                     }
                 )
             }
@@ -71,8 +100,36 @@ struct ActiveWorkoutView: View {
             } message: {
                 Text("Are you sure you want to finish this workout?")
             }
-            .restTimerOverlay(timerManager: restTimerManager) {
-                restTimerManager.stopTimer()
+            .onAppear {
+                // Restore timer state when view appears
+                restTimerManager.restoreTimerIfNeeded()
+                // Start workout stopwatch if active workout exists
+                if activeWorkout != nil {
+                    startWorkoutStopwatch()
+                }
+            }
+            .onDisappear {
+                // Don't stop stopwatch when view disappears - keep it running
+                // The stopwatch should continue even if user navigates away temporarily
+            }
+            .onChange(of: scenePhase) { oldPhase, newPhase in
+                // Restore timer when app comes to foreground
+                if oldPhase == .background && newPhase == .active {
+                    restTimerManager.restoreTimerIfNeeded()
+                    if activeWorkout != nil {
+                        // Recalculate elapsed time based on start time (not timer)
+                        updateWorkoutElapsedTime()
+                        startWorkoutStopwatch()
+                    }
+                }
+                // Don't stop stopwatch when backgrounding - it will recalculate on foreground
+            }
+            .onChange(of: activeWorkouts) { _, _ in
+                if activeWorkout != nil {
+                    startWorkoutStopwatch()
+                } else {
+                    stopWorkoutStopwatch()
+                }
             }
         }
     }
@@ -80,84 +137,402 @@ struct ActiveWorkoutView: View {
     @ViewBuilder
     private func workoutContent(workout: ActiveWorkout) -> some View {
         List {
-            // Workout header
-            Section {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Started: \(workout.startedAt, style: .time)")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    if let templateName = workout.templateName {
-                        Text("Template: \(templateName)")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-                }
-            }
+            timerCardSection
             
-            // Exercises list
+            // Main exercises section with swipe navigation
             if let entries = workout.entries, !entries.isEmpty {
-                ForEach(entries.sorted(by: { $0.order < $1.order }), id: \.id) { entry in
-                    Section(header: Text(entry.exerciseName)) {
-                        if let sets = entry.sets, !sets.isEmpty {
-                            ForEach(sets.sorted(by: { $0.setNumber < $1.setNumber }), id: \.id) { set in
-                                SetRowView(
-                                    set: set,
-                                    modelContext: modelContext,
-                                    onSetComplete: { restTime, exerciseName, setNumber in
-                                        dismissKeyboard()
-                                        if let restTime = restTime, restTime > 0 {
-                                            restTimerManager.startTimer(
-                                                seconds: restTime,
-                                                exerciseName: exerciseName,
-                                                setNumber: setNumber
-                                            )
-                                        }
-                                    },
-                                    onDeleteSet: { setToDelete in
-                                        deleteSet(setToDelete)
-                                    }
-                                )
-                            }
-                        } else {
-                            Text("No sets yet")
-                                .foregroundColor(.secondary)
-                                .font(.caption)
-                        }
-                        
-                        // Add set button
-                        Button(action: {
-                            addSet(to: entry)
-                        }) {
-                            HStack {
-                                Image(systemName: "plus.circle.fill")
-                                Text("Add Set")
-                            }
-                            .foregroundColor(.blue)
-                        }
-                    }
-                }
+                mainExercisesSection(entries: entries, workout: workout)
             } else {
                 Section {
                     Text("No exercises added yet")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(AppTheme.textSecondary)
+                }
+                .listRowBackground(AppTheme.cardPrimary)
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(AppTheme.background)
+        .listRowBackground(AppTheme.cardPrimary)
+    }
+    
+    private var timerCardSection: some View {
+        Section {
+            VStack(spacing: 12) {
+                if restTimerManager.isActive {
+                    restTimerCard
+                } else {
+                    durationTimerCard
                 }
             }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+        }
+        .listRowBackground(AppTheme.cardPrimary)
+        .listRowSeparator(.hidden)
+        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+    }
+    
+    private var restTimerCard: some View {
+        VStack(spacing: 8) {
+            // Large rest timer
+            Text(formatRestTime(restTimerManager.timeRemaining))
+                .font(.system(size: 56, weight: .bold, design: .monospaced))
+                .foregroundColor(AppTheme.accentPrimary)
+                .frame(maxWidth: .infinity)
+                .multilineTextAlignment(.center)
+                .minimumScaleFactor(0.8)
+                .lineLimit(1)
+            
+            // Horizontal progress bar
+            if restTimerManager.initialDuration > 0 {
+                restTimerProgressBar
+            }
+            
+            Text("Rest: \(restTimerManager.exerciseName) - Set \(restTimerManager.setNumber)")
+                .font(.caption)
+                .foregroundColor(AppTheme.textSecondary)
+            
+            // Small duration timer
+            Text(formatElapsedTime(workoutElapsedTime))
+                .font(.system(size: 24, weight: .semibold, design: .monospaced))
+                .foregroundColor(AppTheme.textSecondary)
+                .frame(maxWidth: .infinity)
+                .multilineTextAlignment(.center)
+                .minimumScaleFactor(0.8)
+                .lineLimit(1)
+            
+            // Rest timer controls
+            restTimerControls
         }
     }
     
-    private var emptyState: some View {
+    private var restTimerProgressBar: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .leading) {
+                // Background track
+                Rectangle()
+                    .fill(AppTheme.borderSubtle)
+                    .frame(height: 4)
+                    .cornerRadius(2)
+                
+                // Progress fill
+                let progress = Double(restTimerManager.timeRemaining) / Double(restTimerManager.initialDuration)
+                Rectangle()
+                    .fill(AppTheme.accentPrimary)
+                    .frame(width: geometry.size.width * progress, height: 4)
+                    .cornerRadius(2)
+                    .animation(.linear(duration: 1.0), value: restTimerManager.timeRemaining)
+            }
+        }
+        .frame(height: 4)
+        .padding(.horizontal)
+    }
+    
+    private var restTimerControls: some View {
+        HStack(spacing: 12) {
+            // -15 seconds button
+            Button {
+                restTimerManager.adjustTime(by: -15)
+            } label: {
+                Text("-15")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(AppTheme.textPrimary)
+                    .frame(width: 50, height: 36)
+                    .background(AppTheme.cardTertiary)
+                    .cornerRadius(AppTheme.cornerRadiusSmall)
+            }
+            .buttonStyle(.plain)
+            
+            // Skip rest button
+            Button {
+                restTimerManager.stopTimer()
+            } label: {
+                Text("Skip Rest")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(AppTheme.textPrimary)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 36)
+                    .background(AppTheme.cardTertiary)
+                    .cornerRadius(AppTheme.cornerRadiusSmall)
+            }
+            .buttonStyle(.plain)
+            
+            // +15 seconds button
+            Button {
+                restTimerManager.adjustTime(by: 15)
+            } label: {
+                Text("+15")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(AppTheme.textPrimary)
+                    .frame(width: 50, height: 36)
+                    .background(AppTheme.cardTertiary)
+                    .cornerRadius(AppTheme.cornerRadiusSmall)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 4)
+        .padding(.top, 8)
+        .allowsHitTesting(true)
+    }
+    
+    private var durationTimerCard: some View {
+        Text(formatElapsedTime(workoutElapsedTime))
+            .font(.system(size: 56, weight: .bold, design: .monospaced))
+            .foregroundColor(AppTheme.textPrimary)
+            .frame(maxWidth: .infinity)
+            .multilineTextAlignment(.center)
+            .minimumScaleFactor(0.8)
+            .lineLimit(1)
+    }
+    
+    @ViewBuilder
+    private func mainExercisesSection(entries: [WorkoutEntry], workout: ActiveWorkout) -> some View {
+        let mainEntries = entries.filter { $0.isWarmup != true }.sorted(by: { $0.order < $1.order })
+        if !mainEntries.isEmpty {
+            Section {
+                VStack(spacing: 0) {
+                    // Custom page indicator above exercise title
+                    pageIndicator(count: mainEntries.count)
+                    
+                    // Use ScrollView instead of TabView for better spacing control
+                    GeometryReader { geometry in
+                        ScrollViewReader { proxy in
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 0) {
+                                    ForEach(Array(mainEntries.enumerated()), id: \.element.id) { index, entry in
+                                        ExerciseView(
+                                            entry: entry,
+                                            workout: workout,
+                                            modelContext: modelContext,
+                                            restTimerManager: restTimerManager,
+                                            onAddSet: { entry in
+                                                addSet(to: entry)
+                                            },
+                                            onDeleteHighestSet: { entry in
+                                                deleteHighestSet(from: entry)
+                                            },
+                                            onDeleteSet: { set in
+                                                deleteSet(set)
+                                            },
+                                            onSetComplete: { rest, name, num in
+                                                restTimerManager.startTimer(
+                                                    seconds: rest ?? 0,
+                                                    exerciseName: name,
+                                                    setNumber: num
+                                                )
+                                            }
+                                        )
+                                        .frame(width: geometry.size.width)
+                                        .frame(maxHeight: .infinity, alignment: .top)
+                                        .id(index)
+                                    }
+                                }
+                            }
+                            .scrollTargetBehavior(.paging)
+                            .contentMargins(.zero, for: .scrollContent)
+                            .onAppear {
+                                // Scroll to selected exercise on appear
+                                if selectedExerciseIndex < mainEntries.count {
+                                    proxy.scrollTo(selectedExerciseIndex, anchor: .leading)
+                                }
+                            }
+                            .onChange(of: selectedExerciseIndex) { oldValue, newValue in
+                                // Scroll when selection changes programmatically
+                                withAnimation {
+                                    proxy.scrollTo(newValue, anchor: .leading)
+                                }
+                            }
+                        }
+                    }
+                    .frame(height: calculateExerciseViewHeight(for: mainEntries[selectedExerciseIndex]))
+                }
+                .background(AppTheme.background)
+            }
+            .listRowBackground(AppTheme.background)
+            .listRowSeparator(.hidden)
+            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+        }
+    }
+    
+    private func pageIndicator(count: Int) -> some View {
+        HStack {
+            Spacer()
+            ForEach(0..<count, id: \.self) { index in
+                Circle()
+                    .fill(index == selectedExerciseIndex ? AppTheme.accentPrimary : AppTheme.textTertiary)
+                    .frame(width: 6, height: 6)
+                if index < count - 1 {
+                    Spacer()
+                        .frame(width: 4)
+                }
+            }
+            Spacer()
+        }
+        .padding(.top, 8)
+        .padding(.bottom, 4)
+    }
+    
+    private var templatesView: some View {
+        Group {
+            if workoutTemplates.isEmpty {
+                emptyTemplatesState
+            } else {
+                templateList
+            }
+        }
+        .sheet(isPresented: $showingCreateTemplate) {
+            WorkoutTemplateEditView(template: nil)
+        }
+        .sheet(item: $selectedTemplateForEdit) { template in
+            WorkoutTemplateEditView(template: template)
+        }
+        .alert("Discard Existing Workout?", isPresented: $showingDiscardConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Discard", role: .destructive) {
+                if let template = templateToStart {
+                    discardAndStartWorkout(from: template)
+                }
+            }
+        } message: {
+            Text("Starting a new workout will discard your current active workout. This cannot be undone.")
+        }
+        .alert("Delete Template", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                if let template = templateToDelete {
+                    deleteTemplate(template)
+                }
+            }
+        } message: {
+            Text("Are you sure you want to delete this template? Active workouts started from this template will not be affected.")
+        }
+    }
+    
+    private var emptyTemplatesState: some View {
         VStack(spacing: 20) {
-            Image(systemName: "figure.strengthtraining.traditional")
+            Image(systemName: "doc.text")
                 .font(.system(size: 60))
-                .foregroundColor(.secondary)
-            Text("No Active Workout")
+                .foregroundColor(AppTheme.textSecondary)
+            Text("No Templates")
                 .font(.title2)
                 .fontWeight(.semibold)
-            Text("Start a workout to begin tracking")
+                .foregroundColor(AppTheme.textPrimary)
+            Text("Create a workout template to get started")
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundColor(AppTheme.textSecondary)
+            Button("Create Template") {
+                showingCreateTemplate = true
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(AppTheme.accentPrimary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(AppTheme.background)
+    }
+    
+    private var templateList: some View {
+        ScrollView {
+            VStack(spacing: 12) {
+                ForEach(workoutTemplates) { template in
+                    WorkoutTemplateRow(
+                        template: template,
+                        onTap: {
+                            startWorkout(from: template)
+                        },
+                        onEdit: {
+                            selectedTemplateForEdit = template
+                        },
+                        onDelete: {
+                            templateToDelete = template
+                            showingDeleteConfirmation = true
+                        }
+                    )
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+        }
+        .background(AppTheme.background)
+    }
+    
+    private func deleteTemplate(_ template: WorkoutTemplate) {
+        modelContext.delete(template)
+        try? modelContext.save()
+    }
+    
+    private func startWorkout(from template: WorkoutTemplate) {
+        if activeWorkout != nil {
+            templateToStart = template
+            showingDiscardConfirmation = true
+        } else {
+            createWorkoutFromTemplate(template)
+        }
+    }
+    
+    private func discardAndStartWorkout(from template: WorkoutTemplate) {
+        if let workout = activeWorkout {
+            modelContext.delete(workout)
+            try? modelContext.save()
+        }
+        createWorkoutFromTemplate(template)
+    }
+    
+    private func createWorkoutFromTemplate(_ template: WorkoutTemplate) {
+        let newWorkout = ActiveWorkout(
+            startedAt: Date(),
+            templateName: template.name,
+            notes: nil,
+            workoutTemplate: template
+        )
+        
+        template.lastUsed = Date()
+        
+        guard let templateExercises = template.exercises?.sorted(by: { $0.order < $1.order }), !templateExercises.isEmpty else {
+            modelContext.insert(newWorkout)
+            try? modelContext.save()
+            return
+        }
+        
+        for templateExercise in templateExercises {
+            let setsToCreate = max(1, templateExercise.numberOfSets)
+            let entry = WorkoutEntry(
+                exerciseTemplate: templateExercise.exerciseTemplate,
+                exerciseName: templateExercise.exerciseName,
+                order: templateExercise.order
+            )
+            entry.activeWorkout = newWorkout
+            
+            for setNumber in 1...setsToCreate {
+                let restTime = max(0, templateExercise.restTimeSeconds)
+                let workoutSet = WorkoutSet(
+                    setNumber: setNumber,
+                    reps: templateExercise.targetReps,
+                    weight: nil,
+                    restTime: restTime,
+                    completedAt: nil
+                )
+                workoutSet.workoutEntry = entry
+                
+                if entry.sets == nil {
+                    entry.sets = []
+                }
+                entry.sets?.append(workoutSet)
+                
+                modelContext.insert(workoutSet)
+            }
+            
+            if newWorkout.entries == nil {
+                newWorkout.entries = []
+            }
+            newWorkout.entries?.append(entry)
+            modelContext.insert(entry)
+        }
+        
+        modelContext.insert(newWorkout)
+        try? modelContext.save()
     }
     
     // MARK: - Exercise Management
@@ -172,7 +547,8 @@ struct ActiveWorkoutView: View {
         // Create WorkoutEntry with exercise name snapshot
         let entry = WorkoutEntry(
             exerciseName: name,
-            order: nextOrder
+            order: nextOrder,
+            isWarmup: false
         )
         entry.activeWorkout = workout
         
@@ -203,6 +579,12 @@ struct ActiveWorkoutView: View {
         let currentSets = entry.sets ?? []
         let nextSetNumber = currentSets.isEmpty ? 1 : (currentSets.map { $0.setNumber }.max() ?? 0) + 1
         
+        // Pre-fill weight from previous set of the same exercise
+        let sortedSets = currentSets.sorted(by: { $0.setNumber < $1.setNumber })
+        let lastSetWithWeight = sortedSets.filter { $0.weight != nil }.last
+        let preFilledWeight = lastSetWithWeight?.weight
+        
+        // Create new set (initially without weight to ensure binding works)
         let newSet = WorkoutSet(setNumber: nextSetNumber)
         newSet.workoutEntry = entry
         
@@ -212,7 +594,18 @@ struct ActiveWorkoutView: View {
         entry.sets?.append(newSet)
         
         modelContext.insert(newSet)
-        try? modelContext.save()
+        
+        // Set weight after insertion to ensure SwiftUI binding updates
+        if let weight = preFilledWeight {
+            newSet.weight = weight
+        }
+        
+        // Save and ensure view updates
+        do {
+            try modelContext.save()
+        } catch {
+            print("Error saving new set: \(error)")
+        }
     }
     
     private func deleteSet(_ set: WorkoutSet) {
@@ -228,9 +621,104 @@ struct ActiveWorkoutView: View {
         try? modelContext.save()
     }
     
+    // MARK: - Workout Stopwatch
+    
+    private func startWorkoutStopwatch() {
+        stopWorkoutStopwatch() // Stop any existing timer
+        updateWorkoutElapsedTime() // Update immediately
+        
+        // Use RunLoop to keep timer running even when app backgrounds
+        // Update every 0.01 seconds (10ms) for smooth centisecond updates
+        workoutTimer = Timer.scheduledTimer(withTimeInterval: 0.01, repeats: true) { [self] _ in
+            // Update on main thread but don't block - use async to avoid conflicts with rest timer
+            DispatchQueue.main.async {
+                self.updateWorkoutElapsedTime()
+            }
+        }
+        // Add to RunLoop to keep it active - use .common mode for better background support
+        if let timer = workoutTimer {
+            RunLoop.current.add(timer, forMode: .common)
+        }
+    }
+    
+    private func stopWorkoutStopwatch() {
+        workoutTimer?.invalidate()
+        workoutTimer = nil
+    }
+    
+    private func updateWorkoutElapsedTime() {
+        guard let workout = activeWorkout else {
+            workoutElapsedTime = 0
+            return
+        }
+        workoutElapsedTime = Date().timeIntervalSince(workout.startedAt)
+    }
+    
+    private func formatElapsedTime(_ timeInterval: TimeInterval) -> String {
+        let totalCentiseconds = Int(timeInterval * 100) // Convert to centiseconds
+        let minutes = totalCentiseconds / 6000
+        let seconds = (totalCentiseconds % 6000) / 100
+        let centiseconds = totalCentiseconds % 100
+        // Use monospaced digits with minimal spacing for consistent width
+        return String(format: "%02d:%02d.%02d", minutes, seconds, centiseconds)
+    }
+    
+    private func formatRestTime(_ seconds: Int) -> String {
+        let minutes = seconds / 60
+        let secs = seconds % 60
+        return String(format: "%02d:%02d", minutes, secs)
+    }
+    
+    // MARK: - Exercise Swipe Navigation Helpers
+    // ExerciseView component is now in Views/Components/ExerciseView.swift
+    
+    
+    private func deleteHighestSet(from entry: WorkoutEntry) {
+        guard let sets = entry.sets, !sets.isEmpty else { return }
+        let sortedSets = sets.sorted(by: { $0.setNumber > $1.setNumber })
+        if let highestSet = sortedSets.first {
+            deleteSet(highestSet)
+        }
+    }
+    
+    private func checkAndAdvanceExercise(entry: WorkoutEntry, workout: ActiveWorkout) {
+        // Check if all sets for this exercise are complete
+        guard let sets = entry.sets, !sets.isEmpty else { return }
+        let allSetsComplete = sets.allSatisfy { $0.completedAt != nil }
+        
+        if allSetsComplete {
+            // Get main exercises (non-warmup)
+            guard let entries = workout.entries else { return }
+            let mainEntries = entries.filter { $0.isWarmup != true }.sorted(by: { $0.order < $1.order })
+            
+            // Find current exercise index
+            if let currentIndex = mainEntries.firstIndex(where: { $0.id == entry.id }),
+               currentIndex + 1 < mainEntries.count {
+                // Auto-advance to next exercise after a short delay
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    withAnimation {
+                        selectedExerciseIndex = currentIndex + 1
+                    }
+                }
+            }
+        }
+    }
+    
+    private func calculateExerciseViewHeight(for entry: WorkoutEntry) -> CGFloat {
+        let base: CGFloat = 140
+        let setHeight: CGFloat = 52
+        let buttons: CGFloat = 50
+
+        let count = entry.sets?.count ?? 0
+        return base + CGFloat(count) * setHeight + buttons
+    }
+
+    
     // MARK: - Finish Workout
     
     private func finishWorkout(_ workout: ActiveWorkout) {
+        stopWorkoutStopwatch()
+        restTimerManager.stopTimer() // Stop and dismiss rest timer
         let completedAt = Date()
         let durationSeconds = Int(completedAt.timeIntervalSince(workout.startedAt))
         
@@ -248,6 +736,9 @@ struct ActiveWorkoutView: View {
             }
         }
         
+        // Get workout type from template if available
+        let workoutType = workout.workoutTemplate?.workoutType
+        
         // Create WorkoutHistory
         let history = WorkoutHistory(
             startedAt: workout.startedAt,
@@ -256,6 +747,7 @@ struct ActiveWorkoutView: View {
             notes: workout.notes,
             durationSeconds: durationSeconds,
             totalVolume: totalVolume > 0 ? totalVolume : nil,
+            workoutType: workoutType,
             isSynced: false
         )
         
@@ -269,7 +761,8 @@ struct ActiveWorkoutView: View {
                     exerciseName: entry.exerciseName,
                     order: entry.order,
                     notes: entry.notes,
-                    createdAt: entry.createdAt
+                    createdAt: entry.createdAt,
+                    isWarmup: entry.isWarmup
                 )
                 historyEntry.workoutHistory = history
                 
@@ -307,207 +800,167 @@ struct ActiveWorkoutView: View {
         // Save all changes
         try? modelContext.save()
         
+        // Save workout to HealthKit
+        Task {
+            do {
+                // Estimate calories: roughly 0.04 calories per kg lifted (very rough estimate)
+                let estimatedCalories = totalVolume > 0 ? totalVolume * 0.04 : nil
+                
+                try await HealthKitManager.shared.saveWorkout(
+                    startDate: workout.startedAt,
+                    endDate: completedAt,
+                    duration: TimeInterval(durationSeconds),
+                    totalEnergyBurned: estimatedCalories,
+                    workoutType: .traditionalStrengthTraining
+                )
+            } catch {
+                print("Failed to save workout to HealthKit: \(error.localizedDescription)")
+                // Don't block workout completion if HealthKit save fails
+            }
+        }
+        
         // Dismiss view (navigation back will be handled in Phase 8)
         dismiss()
     }
 }
 
-struct SetRowView: View {
-    @Bindable var set: WorkoutSet
-    let modelContext: ModelContext
-    let onSetComplete: (Int?, String, Int) -> Void
-    let onDeleteSet: (WorkoutSet) -> Void
-    
-    var exerciseName: String {
-        self.set.workoutEntry?.exerciseName ?? "Exercise"
-    }
-    
-    var body: some View {
-        HStack {
-            // Set number
-            Text("Set \(set.setNumber)")
-                .font(.headline)
-                .frame(width: 60, alignment: .leading)
-            
-            Spacer()
-            
-            // Reps field
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Reps")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                TextField("Reps", value: $set.reps, format: .number)
-                    .keyboardType(.numberPad)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 80)
-                    .onChange(of: set.reps) { _, _ in
-                        try? modelContext.save()
-                    }
-            }
-            
-            // Weight field
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Weight")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                TextField("Weight", value: $set.weight, format: .number)
-                    .keyboardType(.decimalPad)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 80)
-                    .onChange(of: set.weight) { _, _ in
-                        try? modelContext.save()
-                    }
-            }
-            
-            // Completion toggle
-            Button(action: {
-                // Dismiss keyboard before completing set
-                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                
-                let wasComplete = set.completedAt != nil
-                set.completedAt = set.completedAt == nil ? Date() : nil
-                try? modelContext.save()
-                
-                // If set was just marked complete (not unmarked), trigger rest timer
-                if !wasComplete, set.completedAt != nil, let restTime = set.restTime, restTime > 0 {
-                    onSetComplete(restTime, exerciseName, set.setNumber)
-                }
-            }) {
-                Image(systemName: set.completedAt != nil ? "checkmark.circle.fill" : "circle")
-                    .foregroundColor(set.completedAt != nil ? .green : .gray)
-                    .font(.title2)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.vertical, 4)
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button(role: .destructive, action: {
-                onDeleteSet(set)
-            }) {
-                Label("Delete", systemImage: "trash")
-            }
-        }
-    }
-}
-
-// MARK: - Add Exercise Sheet
-
-struct AddExerciseSheet: View {
-    let exerciseTemplates: [ExerciseTemplate]
-    let onAddExercise: (String) -> Void
-    @State private var searchText = ""
-    @State private var selectedCategory: String? = "Strength"
-    @Environment(\.dismiss) private var dismiss
-    
-    var availableCategories: [String] {
-        let categories = Set(exerciseTemplates.compactMap { $0.category }.filter { !$0.isEmpty })
-        return Array(categories).sorted()
-    }
-    
-    var filteredTemplates: [ExerciseTemplate] {
-        var filtered = exerciseTemplates
-        
-        // Filter by category
-        if let category = selectedCategory {
-            filtered = filtered.filter { $0.category == category }
-        }
-        
-        // Filter by search text
-        if !searchText.isEmpty {
-            filtered = filtered.filter { template in
-                template.name.localizedCaseInsensitiveContains(searchText) ||
-                template.muscleGroups.contains { $0.localizedCaseInsensitiveContains(searchText) }
-            }
-        }
-        
-        return filtered
-    }
-    
-    var body: some View {
-        NavigationView {
-            List {
-                // Category filter buttons
-                if !availableCategories.isEmpty {
-                    Section {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 12) {
-                                // "All" button
-                                CategoryFilterButton(
-                                    title: "All",
-                                    isSelected: selectedCategory == nil,
-                                    action: {
-                                        selectedCategory = nil
-                                    }
-                                )
-                                
-                                // Category buttons
-                                ForEach(availableCategories, id: \.self) { category in
-                                    CategoryFilterButton(
-                                        title: category,
-                                        isSelected: selectedCategory == category,
-                                        action: {
-                                            selectedCategory = selectedCategory == category ? nil : category
-                                        }
-                                    )
-                                }
-                            }
-                            .padding(.horizontal)
-                        }
-                        .listRowInsets(EdgeInsets())
-                    }
-                }
-                
-                if exerciseTemplates.isEmpty {
-                    Section {
-                        Text("No exercises available")
-                            .foregroundColor(.secondary)
-                    }
-                } else if filteredTemplates.isEmpty {
-                    Section {
-                        Text("No exercises found")
-                            .foregroundColor(.secondary)
-                    }
-                } else {
-                    Section(header: Text("Exercises")) {
-                        ForEach(filteredTemplates, id: \.id) { template in
-                            Button(action: {
-                                onAddExercise(template.name)
-                                dismiss()
-                            }) {
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(template.name)
-                                            .font(.headline)
-                                            .foregroundColor(.primary)
-                                        if !template.muscleGroups.isEmpty {
-                                            Text(template.muscleGroups.joined(separator: ", "))
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
-                                        }
-                                    }
-                                    Spacer()
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            .searchable(text: $searchText, prompt: "Search exercises")
-            .navigationTitle("Add Exercise")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
-            }
-        }
-    }
-}
+// MARK: - Components extracted to Views/Components/
+// SetRowView and AddExerciseSheet are now in separate files for better organization
 
 #Preview {
-    ActiveWorkoutView()
-        .modelContainer(for: [ExerciseTemplate.self, ActiveWorkout.self, WorkoutEntry.self, WorkoutSet.self, WorkoutHistory.self], inMemory: true)
+    let config = ModelConfiguration(isStoredInMemoryOnly: true)
+    let container = try! ModelContainer(
+        for: ExerciseTemplate.self, ActiveWorkout.self, WorkoutEntry.self, WorkoutSet.self, 
+        WorkoutHistory.self, WorkoutTemplate.self, TemplateExercise.self,
+        configurations: config
+    )
+    
+    // Create sample exercise templates
+    let squatTemplate = ExerciseTemplate(
+        name: "Squat",
+        category: "Legs",
+        muscleGroups: ["Quadriceps", "Glutes"],
+        icon: "figure.strengthtraining.traditional",
+        iconColor: "#FFD700",
+        isFavorite: true
+    )
+    
+    let benchPressTemplate = ExerciseTemplate(
+        name: "Bench Press",
+        category: "Chest",
+        muscleGroups: ["Chest", "Triceps"],
+        icon: "figure.strengthtraining.traditional",
+        iconColor: "#FF6B6B",
+        isFavorite: true
+    )
+    
+    let deadliftTemplate = ExerciseTemplate(
+        name: "Deadlift",
+        category: "Back",
+        muscleGroups: ["Back", "Hamstrings"],
+        icon: "figure.strengthtraining.traditional",
+        iconColor: "#4ECDC4",
+        isFavorite: true
+    )
+    
+    // Create sample workout template
+    let workoutTemplate = WorkoutTemplate(
+        name: "Push Day",
+        notes: "Chest and triceps focus"
+    )
+    
+    // Create sample active workout
+    let activeWorkout = ActiveWorkout(
+        startedAt: Date().addingTimeInterval(-1800), // Started 30 minutes ago
+        templateName: "Push Day",
+        workoutTemplate: workoutTemplate
+    )
+    
+    // Create workout entries
+    let squatEntry = WorkoutEntry(
+        exerciseName: "Squat",
+        order: 1,
+        isWarmup: false
+    )
+    squatEntry.activeWorkout = activeWorkout
+    squatEntry.exerciseTemplate = squatTemplate
+    
+    let benchPressEntry = WorkoutEntry(
+        exerciseName: "Bench Press",
+        order: 2,
+        isWarmup: false
+    )
+    benchPressEntry.activeWorkout = activeWorkout
+    benchPressEntry.exerciseTemplate = benchPressTemplate
+    
+    let deadliftEntry = WorkoutEntry(
+        exerciseName: "Deadlift",
+        order: 3,
+        isWarmup: false
+    )
+    deadliftEntry.activeWorkout = activeWorkout
+    deadliftEntry.exerciseTemplate = deadliftTemplate
+    
+    // Create sets for Squat
+    let squatSet1 = WorkoutSet(setNumber: 1, reps: 5, weight: 100.0, restTime: 90, completedAt: Date().addingTimeInterval(-1200))
+    squatSet1.workoutEntry = squatEntry
+    
+    let squatSet2 = WorkoutSet(setNumber: 2, reps: 5, weight: 100.0, restTime: 90, completedAt: Date().addingTimeInterval(-1100))
+    squatSet2.workoutEntry = squatEntry
+    
+    let squatSet3 = WorkoutSet(setNumber: 3, reps: 5, weight: 100.0, restTime: 90, completedAt: Date().addingTimeInterval(-1000))
+    squatSet3.workoutEntry = squatEntry
+    
+    let squatSet4 = WorkoutSet(setNumber: 4, reps: 5, weight: 100.0, restTime: 90, completedAt: Date().addingTimeInterval(-900))
+    squatSet4.workoutEntry = squatEntry
+    
+    let squatSet5 = WorkoutSet(setNumber: 5, reps: 5, weight: 100.0, restTime: 90)
+    squatSet5.workoutEntry = squatEntry
+    
+    let squatSet6 = WorkoutSet(setNumber: 6, reps: nil, weight: 5.0, restTime: 90)
+    squatSet6.workoutEntry = squatEntry
+    
+    // Create sets for Bench Press
+    let benchSet1 = WorkoutSet(setNumber: 1, reps: 8, weight: 80.0, restTime: 90, completedAt: Date().addingTimeInterval(-800))
+    benchSet1.workoutEntry = benchPressEntry
+    
+    let benchSet2 = WorkoutSet(setNumber: 2, reps: 8, weight: 80.0, restTime: 90, completedAt: Date().addingTimeInterval(-700))
+    benchSet2.workoutEntry = benchPressEntry
+    
+    let benchSet3 = WorkoutSet(setNumber: 3, reps: 8, weight: 80.0, restTime: 90)
+    benchSet3.workoutEntry = benchPressEntry
+    
+    // Create sets for Deadlift
+    let deadliftSet1 = WorkoutSet(setNumber: 1, reps: 5, weight: 120.0, restTime: 120)
+    deadliftSet1.workoutEntry = deadliftEntry
+    
+    // Insert all data
+    container.mainContext.insert(squatTemplate)
+    container.mainContext.insert(benchPressTemplate)
+    container.mainContext.insert(deadliftTemplate)
+    container.mainContext.insert(workoutTemplate)
+    container.mainContext.insert(activeWorkout)
+    container.mainContext.insert(squatEntry)
+    container.mainContext.insert(benchPressEntry)
+    container.mainContext.insert(deadliftEntry)
+    container.mainContext.insert(squatSet1)
+    container.mainContext.insert(squatSet2)
+    container.mainContext.insert(squatSet3)
+    container.mainContext.insert(squatSet4)
+    container.mainContext.insert(squatSet5)
+    container.mainContext.insert(squatSet6)
+    container.mainContext.insert(benchSet1)
+    container.mainContext.insert(benchSet2)
+    container.mainContext.insert(benchSet3)
+    container.mainContext.insert(deadliftSet1)
+    
+    // Set up relationships
+    activeWorkout.entries = [squatEntry, benchPressEntry, deadliftEntry]
+    squatEntry.sets = [squatSet1, squatSet2, squatSet3, squatSet4, squatSet5, squatSet6]
+    benchPressEntry.sets = [benchSet1, benchSet2, benchSet3]
+    deadliftEntry.sets = [deadliftSet1]
+    
+    return ActiveWorkoutView()
+        .modelContainer(container)
 }
 

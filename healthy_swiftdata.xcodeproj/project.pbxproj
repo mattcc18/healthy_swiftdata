@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		55D5B8872EFCA1E600BC4EED /* healthy_swiftdata.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = healthy_swiftdata.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		55D5B8872EFCA1E600BC4EED /* .app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = .app; path = healthy.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -40,7 +40,7 @@
 		55D5B8882EFCA1E600BC4EED /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				55D5B8872EFCA1E600BC4EED /* healthy_swiftdata.app */,
+				55D5B8872EFCA1E600BC4EED /* .app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -67,7 +67,7 @@
 			packageProductDependencies = (
 			);
 			productName = healthy_swiftdata;
-			productReference = 55D5B8872EFCA1E600BC4EED /* healthy_swiftdata.app */;
+			productReference = 55D5B8872EFCA1E600BC4EED /* .app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -251,11 +251,15 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = healthy_swiftdata/healthy_swiftdata.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = MCFA5U5434;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = healthy;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "This app needs access to read your health data to display heart rate, step count, and calories burned.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "This app needs access to write your workout and body weight data to Apple Health.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -267,7 +271,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "mattcc.healthy-swiftdata";
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = healthy;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -283,11 +287,15 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = healthy_swiftdata/healthy_swiftdata.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = MCFA5U5434;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = healthy;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "This app needs access to read your health data to display heart rate, step count, and calories burned.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "This app needs access to write your workout and body weight data to Apple Health.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -299,7 +307,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "mattcc.healthy-swiftdata";
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = healthy;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;

@@ -12,70 +12,99 @@ struct ExercisesView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var exerciseTemplates: [ExerciseTemplate]
     @State private var searchText = ""
-    @State private var selectedCategory: String?
+    @State private var selectedBodyPart: String? = "Favorites" // Default to favorites = "Favorites" // Default to favorites
     @State private var showingEditSheet = false
     @State private var exerciseToEdit: ExerciseTemplate?
     @State private var exerciseToDelete: ExerciseTemplate?
     @State private var showingDeleteConfirmation = false
     
-    var filteredExercises: [ExerciseTemplate] {
+    private var filteredExercises: [ExerciseTemplate] {
         var filtered = exerciseTemplates
         
-        // Filter by search text
-        if !searchText.isEmpty {
-            filtered = filtered.filter { template in
-                template.name.localizedCaseInsensitiveContains(searchText) ||
-                template.muscleGroups.contains { $0.localizedCaseInsensitiveContains(searchText) }
+        // Filter by selected filter (Favorites or body part)
+        if let filter = selectedBodyPart {
+            if filter == "Favorites" {
+                // Show only favorites
+                filtered = filtered.filter { exercise in
+                    exercise.isFavorite == true
+                }
+            } else {
+                // Show all exercises for the selected body part (ignore favorites)
+                filtered = filtered.filter { exercise in
+                    exercise.muscleGroups.contains(filter)
+                }
             }
         }
         
-        // Filter by category
-        if let category = selectedCategory {
-            filtered = filtered.filter { $0.category == category }
+        // Filter by search text
+        if !searchText.isEmpty {
+            let searchLower = searchText.lowercased()
+            filtered = filtered.filter { template in
+                template.name.lowercased().contains(searchLower) ||
+                template.muscleGroups.contains { group in
+                    group.lowercased().contains(searchLower)
+                }
+            }
         }
         
         return filtered
     }
     
-    var availableCategories: [String] {
-        let categories = Set(exerciseTemplates.compactMap { $0.category }.filter { !$0.isEmpty })
-        return Array(categories).sorted()
-    }
-    
-    var groupedExercises: [String: [ExerciseTemplate]] {
-        Dictionary(grouping: filteredExercises) { exercise in
-            exercise.category ?? "Other"
+    private var availableBodyParts: [String] {
+        var bodyParts = Set<String>()
+        for exercise in exerciseTemplates {
+            for group in exercise.muscleGroups where !group.isEmpty {
+                bodyParts.insert(group)
+            }
         }
+        return Array(bodyParts).sorted()
     }
     
-    var sortedGroupKeys: [String] {
-        groupedExercises.keys.sorted()
+    private var groupedExercises: [String: [ExerciseTemplate]] {
+        let filtered = filteredExercises
+        var grouped: [String: [ExerciseTemplate]] = [:]
+        
+        for exercise in filtered {
+            let key = exercise.muscleGroups.first ?? "Other"
+            if grouped[key] == nil {
+                grouped[key] = []
+            }
+            grouped[key]?.append(exercise)
+        }
+        
+        return grouped
+    }
+    
+    private var sortedGroupKeys: [String] {
+        let grouped = groupedExercises
+        return grouped.keys.sorted()
     }
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             List {
-                // Category filter buttons
-                if !availableCategories.isEmpty {
+                // Filter buttons (Favorites + Body parts)
+                if !availableBodyParts.isEmpty {
                     Section {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 12) {
-                                // "All" button
+                                // Favorites button (default)
                                 CategoryFilterButton(
-                                    title: "All",
-                                    isSelected: selectedCategory == nil,
+                                    title: "Favorites",
+                                    icon: "star.fill",
+                                    isSelected: selectedBodyPart == "Favorites",
                                     action: {
-                                        selectedCategory = nil
+                                        selectedBodyPart = selectedBodyPart == "Favorites" ? nil : "Favorites"
                                     }
                                 )
                                 
-                                // Category buttons
-                                ForEach(availableCategories, id: \.self) { category in
+                                // Body part buttons
+                                ForEach(availableBodyParts, id: \.self) { bodyPart in
                                     CategoryFilterButton(
-                                        title: category,
-                                        isSelected: selectedCategory == category,
+                                        title: bodyPart,
+                                        isSelected: selectedBodyPart == bodyPart,
                                         action: {
-                                            selectedCategory = selectedCategory == category ? nil : category
+                                            selectedBodyPart = selectedBodyPart == bodyPart ? nil : bodyPart
                                         }
                                     )
                                 }
@@ -87,63 +116,11 @@ struct ExercisesView: View {
                 }
                 
                 // Exercises grouped by category
-                if filteredExercises.isEmpty {
-                    Section {
-                        Text("No exercises found")
-                            .foregroundColor(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .padding()
-                    }
-                } else if selectedCategory != nil {
-                    // Show flat list when category is selected
-                    ForEach(filteredExercises.sorted(by: { $0.name < $1.name }), id: \.id) { template in
-                        ExerciseRow(template: template)
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                Button {
-                                    exerciseToEdit = template
-                                    showingEditSheet = true
-                                } label: {
-                                    Label("Edit", systemImage: "pencil")
-                                }
-                                .tint(.blue)
-                                
-                                Button(role: .destructive) {
-                                    exerciseToDelete = template
-                                    showingDeleteConfirmation = true
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                            }
-                    }
-                } else {
-                    // Show grouped by category
-                    ForEach(sortedGroupKeys, id: \.self) { category in
-                        Section(header: Text(category)) {
-                            if let exercises = groupedExercises[category] {
-                                ForEach(exercises.sorted(by: { $0.name < $1.name }), id: \.id) { template in
-                                    ExerciseRow(template: template)
-                                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                            Button {
-                                                exerciseToEdit = template
-                                                showingEditSheet = true
-                                            } label: {
-                                                Label("Edit", systemImage: "pencil")
-                                            }
-                                            .tint(.blue)
-                                            
-                                            Button(role: .destructive) {
-                                                exerciseToDelete = template
-                                                showingDeleteConfirmation = true
-                                            } label: {
-                                                Label("Delete", systemImage: "trash")
-                                            }
-                                        }
-                                }
-                            }
-                        }
-                    }
-                }
+                exercisesListContent
             }
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background)
+            .listRowBackground(AppTheme.cardPrimary)
             .searchable(text: $searchText, prompt: "Search exercises")
             .navigationTitle("Exercises")
             .toolbar {
@@ -154,6 +131,7 @@ struct ExercisesView: View {
                     } label: {
                         Image(systemName: "plus")
                     }
+                    .foregroundColor(AppTheme.accentPrimary)
                 }
             }
             .sheet(isPresented: $showingEditSheet) {
@@ -179,26 +157,78 @@ struct ExercisesView: View {
         try? modelContext.save()
         exerciseToDelete = nil
     }
-}
-
-struct CategoryFilterButton: View {
-    let title: String
-    let isSelected: Bool
-    let action: () -> Void
     
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(.subheadline)
-                .fontWeight(isSelected ? .semibold : .regular)
-                .foregroundColor(isSelected ? .white : .primary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(isSelected ? Color.blue : Color.gray.opacity(0.2))
-                .cornerRadius(20)
+    private func toggleFavorite(_ exercise: ExerciseTemplate) {
+        exercise.isFavorite = (exercise.isFavorite == true) ? false : true
+        try? modelContext.save()
+    }
+    
+    @ViewBuilder
+    private var exercisesListContent: some View {
+        let filtered = filteredExercises
+        let grouped = groupedExercises
+        let sortedKeys = sortedGroupKeys
+        
+        if filtered.isEmpty {
+            Section {
+                Text("No exercises found")
+                    .foregroundColor(AppTheme.textSecondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding()
+            }
+            .listRowBackground(AppTheme.cardPrimary)
+        } else if selectedBodyPart != nil && selectedBodyPart != "Favorites" {
+            // Show flat list when body part is selected (not favorites)
+            ForEach(filtered.sorted(by: { $0.name < $1.name }), id: \.id) { template in
+                exerciseRowWithActions(template: template)
+            }
+        } else {
+            // Show grouped by category
+            ForEach(sortedKeys, id: \.self) { category in
+                Section(header: Text(category)) {
+                    if let exercises = grouped[category] {
+                        ForEach(exercises.sorted(by: { $0.name < $1.name }), id: \.id) { template in
+                            exerciseRowWithActions(template: template)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func exerciseRowWithActions(template: ExerciseTemplate) -> some View {
+        NavigationLink(destination: ExerciseDetailView(exercise: template)) {
+            ExerciseRow(template: template)
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button {
+                toggleFavorite(template)
+            } label: {
+                Label((template.isFavorite == true) ? "Unfavorite" : "Favorite", 
+                      systemImage: (template.isFavorite == true) ? "star.fill" : "star")
+            }
+            .tint(AppTheme.accentPrimary)
+            
+            Button {
+                exerciseToEdit = template
+                showingEditSheet = true
+            } label: {
+                Label("Edit", systemImage: "pencil")
+            }
+            .tint(AppTheme.accentPrimary)
+            
+            Button(role: .destructive) {
+                exerciseToDelete = template
+                showingDeleteConfirmation = true
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
         }
     }
 }
+
+// MARK: - CategoryFilterButton extracted to Views/Components/CategoryFilterButton.swift
 
 struct ExerciseRow: View {
     let template: ExerciseTemplate
@@ -209,29 +239,38 @@ struct ExerciseRow: View {
             Image(systemName: template.icon)
                 .font(.title2)
                 .foregroundColor(colorFromHex(template.iconColor))
-                .frame(width: 40, height: 40)
-                .background(colorFromHex(template.iconColor).opacity(0.1))
-                .cornerRadius(8)
+                .frame(width: 48, height: 48)
+                .background(colorFromHex(template.iconColor).opacity(0.15))
+                .cornerRadius(AppTheme.cornerRadiusSmall)
             
             // Exercise info
             VStack(alignment: .leading, spacing: 4) {
-                Text(template.name)
-                    .font(.headline)
+                HStack(spacing: 6) {
+                    Text(template.name)
+                        .font(.headline)
+                        .foregroundColor(AppTheme.textPrimary)
+                    
+                    if template.isFavorite == true {
+                        Image(systemName: "star.fill")
+                            .font(.caption)
+                            .foregroundColor(AppTheme.accentPrimary)
+                    }
+                }
                 
                 if !template.muscleGroups.isEmpty {
                     Text(template.muscleGroups.joined(separator: ", "))
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(AppTheme.textSecondary)
                 }
                 
                 if let category = template.category {
                     Text(category)
                         .font(.caption2)
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.gray.opacity(0.2))
-                        .cornerRadius(4)
+                        .foregroundColor(AppTheme.textSecondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(AppTheme.cardTertiary)
+                        .cornerRadius(AppTheme.cornerRadiusSmall)
                 }
             }
             
